@@ -23,3 +23,7 @@ plan_maestro_escuela_patinaje.md
 plan_maestro_escuela_patinaje_v2.md
 
 .claude/settings.local.json
+
+# Archivos de datos locales (no subir al repositorio)
+*.xlsx
+*.xls
