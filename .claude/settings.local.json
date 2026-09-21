@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sI https://escuela-patinaje.vercel.app/)",
+      "Bash(curl -s https://escuela-patinaje.vercel.app/)",
+      "Bash(curl -s -o /dev/null -w \"ruta inexistente: %{http_code}\\\\n\" https://escuela-patinaje.vercel.app/ruta-que-no-existe)"
+    ]
+  }
+}
