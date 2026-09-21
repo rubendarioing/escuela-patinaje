@@ -1,0 +1,23 @@
+# Dependencias y builds
+node_modules/
+dist/
+.vercel/
+
+# Variables de entorno (nunca subir secretos)
+.env
+.env.*
+!.env.example
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# Sistema y editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Versiones antiguas del plan
+plan_maestro_escuela_patinaje.md
+plan_maestro_escuela_patinaje_v2.md
