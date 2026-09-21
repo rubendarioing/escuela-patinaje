@@ -19,3 +19,11 @@ on conflict (slug) do update set
   min_age = excluded.min_age,
   max_age = excluded.max_age,
   sort_order = excluded.sort_order;
+
+insert into instructors (first_name, last_name, email, phone, specialty, bio)
+select v.first_name, v.last_name, v.email, v.phone, v.specialty, v.bio
+from (values
+  ('Instructor', 'Prueba Uno', 'instructor1@example.com', '3000000001', 'Iniciación', 'Instructor de prueba. Reemplazar por datos reales.'),
+  ('Instructor', 'Prueba Dos', 'instructor2@example.com', '3000000002', 'Técnica', 'Instructor de prueba. Reemplazar por datos reales.')
+) as v(first_name, last_name, email, phone, specialty, bio)
+where not exists (select 1 from instructors);
