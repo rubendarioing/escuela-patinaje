@@ -106,3 +106,20 @@ export const getScheduleAvailability = async (): Promise<ScheduleAvailability[]>
     availableSpots: row.available_spots,
   }))
 }
+
+// Horarios ordenados por cercanía a partir de hoy (son recurrentes semanales, no tienen fecha fija)
+const jsDayToOurDay = (jsDay: number) => (jsDay === 0 ? 7 : jsDay)
+
+export const getUpcomingSchedules = async (limit = 5): Promise<Schedule[]> => {
+  const schedules = await getSchedules()
+  const today = jsDayToOurDay(new Date().getDay())
+
+  return schedules
+    .map((schedule) => ({ schedule, daysUntil: (schedule.dayOfWeek - today + 7) % 7 }))
+    .sort(
+      (a, b) =>
+        a.daysUntil - b.daysUntil || a.schedule.startTime.localeCompare(b.schedule.startTime),
+    )
+    .slice(0, limit)
+    .map((x) => x.schedule)
+}

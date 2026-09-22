@@ -14,7 +14,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-    if (!isLoading && session) {
+  if (!isLoading && session) {
     const from = (location.state as { from?: string } | null)?.from ?? '/admin'
     return <Navigate to={from} replace />
   }
