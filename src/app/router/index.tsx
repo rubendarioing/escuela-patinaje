@@ -8,7 +8,7 @@ import { ProgramsPage } from '@/pages/public/ProgramsPage'
 import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
 import { VenuesPage } from '@/pages/public/VenuesPage'
 import { VenueDetailPage } from '@/pages/public/VenueDetailPage'
-
+import { SchedulesPage } from '@/pages/public/SchedulesPage'
 
 export const router = createBrowserRouter([
   {
@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
       { path: 'programas/:slug', element: <ProgramDetailPage /> },
       { path: 'sedes', element: <VenuesPage /> },
       { path: 'sedes/:slug', element: <VenueDetailPage /> },
-      { path: 'horarios', element: <PlaceholderPage title="Horarios" /> },
+      { path: 'horarios', element: <SchedulesPage /> },
       { path: 'instructores', element: <PlaceholderPage title="Instructores" /> },
       { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
       { path: 'contacto', element: <PlaceholderPage title="Contacto" /> },

@@ -8,6 +8,12 @@ export type Schedule = {
   maxCapacity: number
   isActive: boolean
   venue: { id: string; name: string; slug: string } | null
-  program: { id: string; name: string; slug: string } | null
+  program: {
+    id: string
+    name: string
+    slug: string
+    minAge: number | null
+    maxAge: number | null
+  } | null
   leadInstructor: { id: string; firstName: string; lastName: string } | null
 }
