@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { Program } from '@/types/program'
 
 type ProgramCardProps = {
@@ -13,7 +14,10 @@ const formatAgeRange = (minAge: number | null, maxAge: number | null) => {
 
 export function ProgramCard({ program }: ProgramCardProps) {
   return (
-    <div className="rounded-lg border border-slate-200 p-4">
+    <Link
+      to={`/programas/${program.slug}`}
+      className="block rounded-lg border border-slate-200 p-4 transition hover:border-sky-300 hover:shadow-sm"
+    >
       <p className="font-semibold text-slate-900">{program.name}</p>
       <p className="mt-1 text-sm text-slate-600">
         {formatAgeRange(program.minAge, program.maxAge)}
@@ -21,6 +25,6 @@ export function ProgramCard({ program }: ProgramCardProps) {
       {program.description && (
         <p className="mt-1 line-clamp-2 text-sm text-slate-500">{program.description}</p>
       )}
-    </div>
+    </Link>
   )
 }

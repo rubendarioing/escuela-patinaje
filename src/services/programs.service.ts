@@ -40,3 +40,10 @@ export const getProgramBySlug = async (slug: string): Promise<Program | null> =>
   if (error) throw error
   return data ? mapProgram(data) : null
 }
+
+// Horarios activos de un programa, usado en la página de detalle
+export const getSchedulesByProgramId = async (programId: string) => {
+  const { getSchedules } = await import('@/services/schedules.service')
+  const schedules = await getSchedules()
+  return schedules.filter((s) => s.programId === programId)
+}

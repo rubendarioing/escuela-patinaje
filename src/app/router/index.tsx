@@ -4,6 +4,8 @@ import { HomePage } from '@/pages/public/HomePage'
 import { NotFoundPage } from '@/pages/public/NotFoundPage'
 import { PlaceholderPage } from '@/pages/public/PlaceholderPage'
 import { RouteErrorPage } from '@/pages/public/RouteErrorPage'
+import { ProgramsPage } from '@/pages/public/ProgramsPage'
+import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
 
 export const router = createBrowserRouter([
   {
@@ -13,7 +15,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'nosotros', element: <PlaceholderPage title="Nosotros" /> },
-      { path: 'programas', element: <PlaceholderPage title="Programas" /> },
+      { path: 'programas', element: <ProgramsPage /> },
+      { path: 'programas/:slug', element: <ProgramDetailPage /> },
       { path: 'sedes', element: <PlaceholderPage title="Sedes" /> },
       { path: 'horarios', element: <PlaceholderPage title="Horarios" /> },
       { path: 'instructores', element: <PlaceholderPage title="Instructores" /> },
