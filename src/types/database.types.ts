@@ -108,6 +108,7 @@ export type Database = {
       athletes: {
         Row: {
           birth_date: string
+          blood_type: string | null
           created_at: string
           document_number: string | null
           document_type: string | null
@@ -123,6 +124,7 @@ export type Database = {
         }
         Insert: {
           birth_date: string
+          blood_type?: string | null
           created_at?: string
           document_number?: string | null
           document_type?: string | null
@@ -138,6 +140,7 @@ export type Database = {
         }
         Update: {
           birth_date?: string
+          blood_type?: string | null
           created_at?: string
           document_number?: string | null
           document_type?: string | null
