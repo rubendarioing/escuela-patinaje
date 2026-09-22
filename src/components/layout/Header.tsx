@@ -11,6 +11,8 @@ const links = [
   { to: '/sedes', label: 'Sedes' },
   { to: '/horarios', label: 'Horarios' },
   { to: '/instructores', label: 'Instructores' },
+  { to: '/galeria', label: 'Galería' },
+  { to: '/preguntas-frecuentes', label: 'Preguntas frecuentes' },
   { to: '/contacto', label: 'Contacto' },
 ]
 
