@@ -6,6 +6,9 @@ import { PlaceholderPage } from '@/pages/public/PlaceholderPage'
 import { RouteErrorPage } from '@/pages/public/RouteErrorPage'
 import { ProgramsPage } from '@/pages/public/ProgramsPage'
 import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
+import { VenuesPage } from '@/pages/public/VenuesPage'
+import { VenueDetailPage } from '@/pages/public/VenueDetailPage'
+
 
 export const router = createBrowserRouter([
   {
@@ -17,7 +20,8 @@ export const router = createBrowserRouter([
       { path: 'nosotros', element: <PlaceholderPage title="Nosotros" /> },
       { path: 'programas', element: <ProgramsPage /> },
       { path: 'programas/:slug', element: <ProgramDetailPage /> },
-      { path: 'sedes', element: <PlaceholderPage title="Sedes" /> },
+      { path: 'sedes', element: <VenuesPage /> },
+      { path: 'sedes/:slug', element: <VenueDetailPage /> },
       { path: 'horarios', element: <PlaceholderPage title="Horarios" /> },
       { path: 'instructores', element: <PlaceholderPage title="Instructores" /> },
       { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
