@@ -19,6 +19,7 @@ import { AdminAuthLayout } from '@/app/providers/AdminAuthLayout'
 import { ProtectedRoute } from '@/app/router/ProtectedRoute'
 import { LoginPage } from '@/pages/admin/LoginPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminLayout } from '@/components/layout/admin/AdminLayout'
 
 export const router = createBrowserRouter([
   {
@@ -50,7 +51,12 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       {
         element: <ProtectedRoute />,
-        children: [{ index: true, element: <AdminDashboardPage /> }],
+        children: [
+          {
+            element: <AdminLayout />,
+            children: [{ index: true, element: <AdminDashboardPage /> }],
+          },
+        ],
       },
     ],
   },
