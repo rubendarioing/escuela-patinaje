@@ -45,3 +45,10 @@ export const getVenueBySlug = async (slug: string): Promise<Venue | null> => {
   if (error) throw error
   return data ? mapVenue(data) : null
 }
+
+// Horarios activos de una sede, usado en la página de detalle
+export const getSchedulesByVenueId = async (venueId: string) => {
+  const { getSchedules } = await import('@/services/schedules.service')
+  const schedules = await getSchedules()
+  return schedules.filter((s) => s.venueId === venueId)
+}
