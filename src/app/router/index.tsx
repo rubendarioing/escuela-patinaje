@@ -12,8 +12,13 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'nosotros', element: <PlaceholderPage title="Nosotros" /> },
+      { path: 'programas', element: <PlaceholderPage title="Programas" /> },
+      { path: 'sedes', element: <PlaceholderPage title="Sedes" /> },
       { path: 'horarios', element: <PlaceholderPage title="Horarios" /> },
+      { path: 'instructores', element: <PlaceholderPage title="Instructores" /> },
       { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
+      { path: 'contacto', element: <PlaceholderPage title="Contacto" /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
