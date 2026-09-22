@@ -2,7 +2,6 @@ import { createBrowserRouter } from 'react-router-dom'
 import { PublicLayout } from '@/components/layout/PublicLayout'
 import { HomePage } from '@/pages/public/HomePage'
 import { NotFoundPage } from '@/pages/public/NotFoundPage'
-import { PlaceholderPage } from '@/pages/public/PlaceholderPage'
 import { RouteErrorPage } from '@/pages/public/RouteErrorPage'
 import { ProgramsPage } from '@/pages/public/ProgramsPage'
 import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
@@ -15,6 +14,7 @@ import { ContactPage } from '@/pages/public/ContactPage'
 import { GalleryPage } from '@/pages/public/GalleryPage'
 import { FaqPage } from '@/pages/public/FaqPage'
 import { PrivacyPage } from '@/pages/public/PrivacyPage'
+import { InscriptionPage } from '@/pages/public/InscriptionPage'
 
 export const router = createBrowserRouter([
   {
@@ -32,7 +32,7 @@ export const router = createBrowserRouter([
       { path: 'instructores', element: <InstructorsPage /> },
       { path: 'galeria', element: <GalleryPage /> },
       { path: 'preguntas-frecuentes', element: <FaqPage /> },
-      { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
+      { path: 'inscripcion', element: <InscriptionPage /> },
       { path: 'contacto', element: <ContactPage /> },
       { path: 'privacidad', element: <PrivacyPage /> },
       { path: '*', element: <NotFoundPage /> },
