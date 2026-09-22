@@ -7,9 +7,12 @@ import { cn } from '@/lib/utils'
 type ScheduleCardProps = {
   schedule: Schedule
   enrollHref?: string
+  availableSpots?: number
 }
 
-export function ScheduleCard({ schedule, enrollHref }: ScheduleCardProps) {
+export function ScheduleCard({ schedule, enrollHref, availableSpots }: ScheduleCardProps) {
+  const isFull = availableSpots === 0
+
   return (
     <div className="flex flex-col rounded-lg border border-slate-200 p-4">
       <p className="font-semibold text-slate-900">{schedule.program?.name}</p>
@@ -24,16 +27,26 @@ export function ScheduleCard({ schedule, enrollHref }: ScheduleCardProps) {
         </p>
       )}
       <p className="mt-2 text-xs text-slate-500">
-        Cupo máximo: {schedule.maxCapacity} · Cupos disponibles: por confirmar
+        Cupo máximo: {schedule.maxCapacity} ·{' '}
+        {availableSpots === undefined
+          ? 'Cupos disponibles: por confirmar'
+          : isFull
+            ? 'Sin cupos disponibles'
+            : `Cupos disponibles: ${availableSpots}`}
       </p>
-      {enrollHref && (
-        <Link
-          to={enrollHref}
-          className={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'mt-3 w-full')}
-        >
-          Inscribirse
-        </Link>
-      )}
+      {enrollHref &&
+        (isFull ? (
+          <p className="mt-3 rounded-md bg-slate-100 px-3 py-2 text-center text-xs text-slate-500">
+            No hay cupo en este horario. Escríbenos por WhatsApp para buscar otra opción.
+          </p>
+        ) : (
+          <Link
+            to={enrollHref}
+            className={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'mt-3 w-full')}
+          >
+            Inscribirse
+          </Link>
+        ))}
     </div>
   )
 }

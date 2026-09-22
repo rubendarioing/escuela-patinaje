@@ -85,3 +85,24 @@ export const getSchedulesByVenueSlug = async (venueSlug: string): Promise<Schedu
     .filter((row) => row.venues !== null)
     .map(mapSchedule)
 }
+
+export type ScheduleAvailability = {
+  scheduleId: string
+  maxCapacity: number
+  enrolledCount: number
+  availableSpots: number
+}
+
+// Cupos disponibles por horario, calculados por la función RPC (paso 30).
+// No requiere leer registrations directamente: la función lo hace por dentro.
+export const getScheduleAvailability = async (): Promise<ScheduleAvailability[]> => {
+  const { data, error } = await supabase.rpc('get_schedule_availability')
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    scheduleId: row.schedule_id,
+    maxCapacity: row.max_capacity,
+    enrolledCount: row.enrolled_count,
+    availableSpots: row.available_spots,
+  }))
+}

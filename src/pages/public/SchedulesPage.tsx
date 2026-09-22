@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getSchedules } from '@/services/schedules.service'
 import type { Schedule } from '@/types/schedule'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -8,11 +7,13 @@ import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
 import { ScheduleCard } from '@/features/schedules/ScheduleCard'
 import { DAY_LABELS } from '@/lib/utils/schedule'
+import { getSchedules, getScheduleAvailability } from '@/services/schedules.service'
 
 const ALL = 'all'
 
 export function SchedulesPage() {
   const [schedules, setSchedules] = useState<Schedule[] | null>(null)
+  const [availabilityMap, setAvailabilityMap] = useState<Map<string, number>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
@@ -24,10 +25,11 @@ export function SchedulesPage() {
   useEffect(() => {
     let cancelled = false
 
-    getSchedules()
-      .then((result) => {
+    Promise.all([getSchedules(), getScheduleAvailability()])
+      .then(([scheduleResult, availabilityResult]) => {
         if (cancelled) return
-        setSchedules(result)
+        setSchedules(scheduleResult)
+        setAvailabilityMap(new Map(availabilityResult.map((a) => [a.scheduleId, a.availableSpots])))
       })
       .catch(() => {
         if (cancelled) return
@@ -172,6 +174,7 @@ export function SchedulesPage() {
               key={schedule.id}
               schedule={schedule}
               enrollHref={`/inscripcion?horario=${schedule.id}`}
+              availableSpots={availabilityMap.get(schedule.id)}
             />
           ))}
         </div>
