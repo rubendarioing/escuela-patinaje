@@ -522,6 +522,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      submit_preregistration: { Args: { payload: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
