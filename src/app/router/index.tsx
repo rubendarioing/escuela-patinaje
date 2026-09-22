@@ -14,6 +14,7 @@ import { AboutPage } from '@/pages/public/AboutPage'
 import { ContactPage } from '@/pages/public/ContactPage'
 import { GalleryPage } from '@/pages/public/GalleryPage'
 import { FaqPage } from '@/pages/public/FaqPage'
+import { PrivacyPage } from '@/pages/public/PrivacyPage'
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'preguntas-frecuentes', element: <FaqPage /> },
       { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
       { path: 'contacto', element: <ContactPage /> },
+      { path: 'privacidad', element: <PrivacyPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
