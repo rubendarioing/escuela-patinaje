@@ -9,6 +9,7 @@ import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
 import { VenuesPage } from '@/pages/public/VenuesPage'
 import { VenueDetailPage } from '@/pages/public/VenueDetailPage'
 import { SchedulesPage } from '@/pages/public/SchedulesPage'
+import { InstructorsPage } from '@/pages/public/InstructorsPage'
 
 export const router = createBrowserRouter([
   {
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
       { path: 'sedes', element: <VenuesPage /> },
       { path: 'sedes/:slug', element: <VenueDetailPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
-      { path: 'instructores', element: <PlaceholderPage title="Instructores" /> },
+      { path: 'instructores', element: <InstructorsPage /> },
       { path: 'inscripcion', element: <PlaceholderPage title="Inscripción" /> },
       { path: 'contacto', element: <PlaceholderPage title="Contacto" /> },
       { path: '*', element: <NotFoundPage /> },

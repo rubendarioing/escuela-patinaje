@@ -20,6 +20,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         {instructor.firstName} {instructor.lastName}
       </p>
       {instructor.specialty && <p className="text-sm text-slate-500">{instructor.specialty}</p>}
+      {instructor.bio && <p className="mt-2 text-left text-sm text-slate-600">{instructor.bio}</p>}
     </div>
   )
 }
