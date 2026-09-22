@@ -1,5 +1,5 @@
 -- =====================================================================
--- Pruebas RLS: parte anónima (paso 19)
+-- Pruebas RLS: parte anónima (pasos 19 y 30)
 -- Cómo ejecutarlo: copiar todo en Supabase Dashboard > SQL Editor > Run.
 -- Todo corre dentro de una transacción que termina en ROLLBACK, así que
 -- no deja datos en la base.
@@ -35,6 +35,23 @@ where i.last_name = 'Inactivo'
   and s.venue_id in (select id from venues where is_active)
 limit 1;
 
+-- Un deportista, un acudiente y una inscripción reales (como postgres),
+-- para comprobar que el público no puede leerlos
+insert into guardians (id, first_name, last_name, email)
+values ('11111111-1111-1111-1111-111111111111', 'TEST', 'Acudiente', 'test.guardian@example.com');
+
+insert into athletes (id, first_name, last_name, birth_date)
+values ('22222222-2222-2222-2222-222222222222', 'TEST', 'Deportista', '2015-01-01');
+
+insert into athlete_guardians (athlete_id, guardian_id, is_primary)
+values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', true);
+
+insert into registrations (athlete_id, schedule_id, status)
+select '22222222-2222-2222-2222-222222222222', s.id, 'confirmed'
+from training_schedules s
+where s.is_active and s.venue_id in (select id from venues where is_active)
+limit 1;
+
 -- 2) Valores esperados, calculados como postgres (ve todo)
 select set_config('t.venues',
   (select count(*) from venues where is_active)::text, true);
@@ -54,6 +71,8 @@ select set_config('t.sched_instr',
    where s.is_active and i.is_active
      and exists (select 1 from venues v where v.id = s.venue_id and v.is_active)
      and exists (select 1 from programs p where p.id = s.program_id and p.is_active))::text, true);
+select set_config('t.doc_types',
+  (select count(*) from document_types)::text, true);
 
 -- 3) Desde aquí actuamos como visitante anónimo
 set local role anon;
@@ -85,6 +104,11 @@ begin
   assert n = current_setting('t.sched_instr')::int,
     format('FALLA: schedule_instructors visibles=%s, esperados=%s', n, current_setting('t.sched_instr'));
 
+  -- A2) document_types: catálogo público, debe verse completo
+  select count(*) into n from document_types;
+  assert n = current_setting('t.doc_types')::int,
+    format('FALLA: document_types visibles=%s, esperados=%s', n, current_setting('t.doc_types'));
+
   -- B) Columnas privadas de instructors: deben estar bloqueadas
   begin
     perform email from instructors;
@@ -104,12 +128,14 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  -- C) admin_profiles: el público no ve nada
-  begin
-    select count(*) into n from admin_profiles;
-    assert n = 0, 'FALLA: anon ve filas de admin_profiles';
-  exception when insufficient_privilege then null;
-  end;
+  -- C) Tablas privadas: el público no ve nada
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations'] loop
+    begin
+      execute format('select count(*) from %I', t) into n;
+      assert n = 0, format('FALLA: anon ve %s filas de %s', n, t);
+    exception when insufficient_privilege then null;
+    end;
+  end loop;
 
   -- D) Inserciones: todas deben fallar
   foreach s in array array[
@@ -118,7 +144,12 @@ begin
     $q$insert into instructors (first_name, last_name) values ('hack', 'hack')$q$,
     $q$insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity) values (gen_random_uuid(), gen_random_uuid(), 1, '10:00', '11:00', 5)$q$,
     $q$insert into schedule_instructors (schedule_id, instructor_id) values (gen_random_uuid(), gen_random_uuid())$q$,
-    $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$
+    $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$,
+    $q$insert into document_types (code, name) values ('XX', 'hack')$q$,
+    $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
+    $q$insert into guardians (first_name, last_name, email) values ('hack', 'hack', 'hack@example.com')$q$,
+    $q$insert into athlete_guardians (athlete_id, guardian_id) values (gen_random_uuid(), gen_random_uuid())$q$,
+    $q$insert into registrations (athlete_id, schedule_id) values (gen_random_uuid(), gen_random_uuid())$q$
   ] loop
     begin
       execute s;
@@ -130,7 +161,8 @@ begin
   -- E) Actualizaciones y borrados: deben fallar o no afectar ninguna fila
   foreach t in array array[
     'venues', 'programs', 'instructors', 'training_schedules',
-    'schedule_instructors', 'admin_profiles'
+    'schedule_instructors', 'admin_profiles',
+    'athletes', 'guardians', 'athlete_guardians', 'registrations'
   ] loop
     begin
       execute format('update %I set created_at = created_at', t);
@@ -147,6 +179,22 @@ begin
     end;
   end loop;
 
+-- document_types no tiene created_at (catálogo sin columnas de auditoría);
+  -- se prueba aparte con una columna que sí tiene.
+  begin
+    update document_types set name = name;
+    get diagnostics n = row_count;
+    assert n = 0, 'FALLA: anon pudo actualizar document_types';
+  exception when insufficient_privilege then null;
+  end;
+
+  begin
+    delete from document_types;
+    get diagnostics n = row_count;
+    assert n = 0, 'FALLA: anon pudo borrar en document_types';
+  exception when insufficient_privilege then null;
+  end;
+
   -- F) Las funciones de autorización no son ejecutables por el público
   foreach s in array array['select is_staff()', 'select is_admin()'] loop
     begin
@@ -155,6 +203,14 @@ begin
     exception when insufficient_privilege then null;
     end;
   end loop;
+
+  -- G) get_schedule_availability() SÍ debe ser ejecutable por el público,
+  -- y no debe exponer más columnas que el conteo
+  begin
+    perform * from get_schedule_availability() limit 1;
+  exception when insufficient_privilege then
+    raise exception 'FALLA: anon no pudo ejecutar get_schedule_availability()';
+  end;
 end;
 $$;
 
