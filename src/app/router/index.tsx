@@ -15,6 +15,10 @@ import { GalleryPage } from '@/pages/public/GalleryPage'
 import { FaqPage } from '@/pages/public/FaqPage'
 import { PrivacyPage } from '@/pages/public/PrivacyPage'
 import { InscriptionPage } from '@/pages/public/InscriptionPage'
+import { AdminAuthLayout } from '@/app/providers/AdminAuthLayout'
+import { ProtectedRoute } from '@/app/router/ProtectedRoute'
+import { LoginPage } from '@/pages/admin/LoginPage'
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +40,18 @@ export const router = createBrowserRouter([
       { path: 'contacto', element: <ContactPage /> },
       { path: 'privacidad', element: <PrivacyPage /> },
       { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+  {
+    path: '/admin',
+    element: <AdminAuthLayout />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      { path: 'login', element: <LoginPage /> },
+      {
+        element: <ProtectedRoute />,
+        children: [{ index: true, element: <AdminDashboardPage /> }],
+      },
     ],
   },
 ])
