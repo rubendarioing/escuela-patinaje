@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Schedule } from '@/types/schedule'
 
-// Fila con las relaciones anidadas que trae Supabase al usar select() con joins
 type ScheduleWithRelationsRow = {
   id: string
   venue_id: string
@@ -12,7 +11,13 @@ type ScheduleWithRelationsRow = {
   max_capacity: number
   is_active: boolean
   venues: { id: string; name: string; slug: string } | null
-  programs: { id: string; name: string; slug: string } | null
+  programs: {
+    id: string
+    name: string
+    slug: string
+    min_age: number | null
+    max_age: number | null
+  } | null
   schedule_instructors: {
     role: string
     instructors: { id: string; first_name: string; last_name: string } | null
@@ -32,7 +37,15 @@ export const mapSchedule = (row: ScheduleWithRelationsRow): Schedule => {
     maxCapacity: row.max_capacity,
     isActive: row.is_active,
     venue: row.venues,
-    program: row.programs,
+    program: row.programs
+      ? {
+          id: row.programs.id,
+          name: row.programs.name,
+          slug: row.programs.slug,
+          minAge: row.programs.min_age,
+          maxAge: row.programs.max_age,
+        }
+      : null,
     leadInstructor: lead
       ? { id: lead.id, firstName: lead.first_name, lastName: lead.last_name }
       : null,
@@ -42,11 +55,10 @@ export const mapSchedule = (row: ScheduleWithRelationsRow): Schedule => {
 const SCHEDULE_SELECT = `
   id, venue_id, program_id, day_of_week, start_time, end_time, max_capacity, is_active,
   venues ( id, name, slug ),
-  programs ( id, name, slug ),
+  programs ( id, name, slug, min_age, max_age ),
   schedule_instructors ( role, instructors ( id, first_name, last_name ) )
 `
 
-// Horarios activos, con su sede, programa e instructor principal
 export const getSchedules = async (): Promise<Schedule[]> => {
   const { data, error } = await supabase
     .from('training_schedules')
@@ -59,7 +71,6 @@ export const getSchedules = async (): Promise<Schedule[]> => {
   return (data as unknown as ScheduleWithRelationsRow[]).map(mapSchedule)
 }
 
-// Horarios de una sede concreta (para la página de detalle de sede)
 export const getSchedulesByVenueSlug = async (venueSlug: string): Promise<Schedule[]> => {
   const { data, error } = await supabase
     .from('training_schedules')
