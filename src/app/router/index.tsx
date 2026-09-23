@@ -26,6 +26,8 @@ import { ProgramsListPage } from '@/pages/admin/programs/ProgramsListPage'
 import { ProgramFormPage } from '@/pages/admin/programs/ProgramFormPage'
 import { InstructorsListPage } from '@/pages/admin/instructors/InstructorsListPage'
 import { InstructorFormPage } from '@/pages/admin/instructors/InstructorFormPage'
+import { SchedulesListPage } from '@/pages/admin/schedules/SchedulesListPage'
+import { ScheduleFormPage } from '@/pages/admin/schedules/ScheduleFormPage'
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +73,9 @@ export const router = createBrowserRouter([
               { path: 'instructores', element: <InstructorsListPage /> },
               { path: 'instructores/nuevo', element: <InstructorFormPage /> },
               { path: 'instructores/:id/editar', element: <InstructorFormPage /> },
+              { path: 'horarios', element: <SchedulesListPage /> },
+              { path: 'horarios/nuevo', element: <ScheduleFormPage /> },
+              { path: 'horarios/:id/editar', element: <ScheduleFormPage /> },
             ],
           },
         ],
