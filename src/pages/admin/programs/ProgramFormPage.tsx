@@ -2,36 +2,40 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createVenue, getVenueById, updateVenue } from '@/services/venues.service'
-import { venueSchema, type VenueFormValues } from '@/lib/validations/venue.schema'
+import { createProgram, getProgramById, updateProgram } from '@/services/programs.service'
+import {
+  programSchema,
+  PROGRAM_LEVEL_OPTIONS,
+  type ProgramFormValues,
+} from '@/lib/validations/program.schema'
 import { slugify } from '@/lib/utils/slug'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FormField } from '@/components/forms/FormField'
+import { SelectField } from '@/components/forms/SelectField'
 import { ImageUpload } from '@/components/forms/ImageUpload'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const emptyValues: VenueFormValues = {
+const emptyValues: ProgramFormValues = {
   name: '',
   slug: '',
-  address: '',
-  city: '',
   description: '',
-  phone: '',
-  whatsapp: '',
-  googleMapsUrl: '',
+  level: '',
+  minAge: '',
+  maxAge: '',
+  sortOrder: '',
   imageUrl: '',
   isActive: true,
 }
 
-export function VenueFormPage() {
+export function ProgramFormPage() {
   const { id } = useParams<{ id: string }>()
   const isEditMode = Boolean(id)
   const navigate = useNavigate()
 
-  const [isLoadingVenue, setIsLoadingVenue] = useState(isEditMode)
+  const [isLoadingProgram, setIsLoadingProgram] = useState(isEditMode)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [slugLocked, setSlugLocked] = useState(isEditMode)
@@ -43,8 +47,8 @@ export function VenueFormPage() {
     setValue,
     reset,
     formState: { errors, isSubmitting, dirtyFields },
-  } = useForm<VenueFormValues>({
-    resolver: zodResolver(venueSchema),
+  } = useForm<ProgramFormValues>({
+    resolver: zodResolver(programSchema),
     defaultValues: emptyValues,
   })
 
@@ -52,32 +56,31 @@ export function VenueFormPage() {
     if (!isEditMode || !id) return
     let cancelled = false
 
-    getVenueById(id)
-      .then((venue) => {
+    getProgramById(id)
+      .then((program) => {
         if (cancelled) return
-        if (!venue) {
-          setLoadError('Esa sede no existe.')
+        if (!program) {
+          setLoadError('Ese programa no existe.')
           return
         }
         reset({
-          name: venue.name,
-          slug: venue.slug,
-          address: venue.address,
-          city: venue.city ?? '',
-          description: venue.description ?? '',
-          phone: venue.phone ?? '',
-          whatsapp: venue.whatsapp ?? '',
-          googleMapsUrl: venue.googleMapsUrl ?? '',
-          imageUrl: venue.imageUrl ?? '',
-          isActive: venue.isActive,
+          name: program.name,
+          slug: program.slug,
+          description: program.description ?? '',
+          level: program.level ?? '',
+          minAge: program.minAge != null ? String(program.minAge) : '',
+          maxAge: program.maxAge != null ? String(program.maxAge) : '',
+          sortOrder: String(program.sortOrder),
+          imageUrl: program.imageUrl ?? '',
+          isActive: program.isActive,
         })
       })
       .catch(() => {
         if (cancelled) return
-        setLoadError('No se pudo cargar la sede.')
+        setLoadError('No se pudo cargar el programa.')
       })
       .finally(() => {
-        if (!cancelled) setIsLoadingVenue(false)
+        if (!cancelled) setIsLoadingProgram(false)
       })
 
     return () => {
@@ -95,26 +98,26 @@ export function VenueFormPage() {
 
   const imageUrl = watch('imageUrl')
 
-  const onSubmit = async (values: VenueFormValues) => {
+  const onSubmit = async (values: ProgramFormValues) => {
     setSubmitError(null)
     try {
       if (isEditMode && id) {
-        await updateVenue(id, values)
+        await updateProgram(id, values)
       } else {
-        await createVenue(values)
+        await createProgram(values)
       }
-      navigate('/admin/sedes')
+      navigate('/admin/programas')
     } catch {
-      setSubmitError('No se pudo guardar la sede. Revisa los datos e inténtalo de nuevo.')
+      setSubmitError('No se pudo guardar el programa. Revisa los datos e inténtalo de nuevo.')
     }
   }
 
-  if (isLoadingVenue) return <LoadingState label="Cargando sede…" />
+  if (isLoadingProgram) return <LoadingState label="Cargando programa…" />
   if (loadError) return <ErrorState message={loadError} />
 
   return (
     <div className="space-y-6">
-      <PageHeader title={isEditMode ? 'Editar sede' : 'Nueva sede'} />
+      <PageHeader title={isEditMode ? 'Editar programa' : 'Nuevo programa'} />
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="max-w-xl space-y-4">
         <FormField label="Nombre" htmlFor="name" required error={errors.name?.message}>
@@ -150,22 +153,6 @@ export function VenueFormPage() {
           )}
         </FormField>
 
-        <FormField label="Dirección" htmlFor="address" required error={errors.address?.message}>
-          <input
-            id="address"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            {...register('address')}
-          />
-        </FormField>
-
-        <FormField label="Ciudad" htmlFor="city" error={errors.city?.message}>
-          <input
-            id="city"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            {...register('city')}
-          />
-        </FormField>
-
         <FormField label="Descripción" htmlFor="description" error={errors.description?.message}>
           <textarea
             id="description"
@@ -175,46 +162,56 @@ export function VenueFormPage() {
           />
         </FormField>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Teléfono" htmlFor="phone" error={errors.phone?.message}>
+        <SelectField
+          label="Nivel (opcional)"
+          id="level"
+          placeholder="(Sin nivel)"
+          options={PROGRAM_LEVEL_OPTIONS}
+          error={errors.level?.message}
+          {...register('level')}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField label="Edad mínima" htmlFor="minAge" error={errors.minAge?.message}>
             <input
-              id="phone"
+              id="minAge"
+              type="number"
+              min={0}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              {...register('phone')}
+              {...register('minAge')}
             />
           </FormField>
-          <FormField label="WhatsApp" htmlFor="whatsapp" error={errors.whatsapp?.message}>
+          <FormField label="Edad máxima" htmlFor="maxAge" error={errors.maxAge?.message}>
             <input
-              id="whatsapp"
+              id="maxAge"
+              type="number"
+              min={0}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              {...register('whatsapp')}
+              {...register('maxAge')}
+            />
+          </FormField>
+          <FormField label="Orden" htmlFor="sortOrder" error={errors.sortOrder?.message}>
+            <input
+              id="sortOrder"
+              type="number"
+              min={0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              {...register('sortOrder')}
             />
           </FormField>
         </div>
 
-        <FormField
-          label="URL de Google Maps"
-          htmlFor="googleMapsUrl"
-          error={errors.googleMapsUrl?.message}
-        >
-          <input
-            id="googleMapsUrl"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            {...register('googleMapsUrl')}
-          />
-        </FormField>
-
         <ImageUpload
           label="Imagen"
-          bucket="venues"
-          folder={id ?? 'nueva'}
+          bucket="programs"
+          folder={id ?? 'nuevo'}
           value={imageUrl || null}
           onChange={(url) => setValue('imageUrl', url ?? '')}
         />
 
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" {...register('isActive')} />
-          Sede activa (visible en el sitio público)
+          Programa activo (visible en el sitio público)
         </label>
 
         {submitError && (
@@ -231,7 +228,7 @@ export function VenueFormPage() {
           >
             {isSubmitting ? 'Guardando…' : 'Guardar'}
           </button>
-          <Link to="/admin/sedes" className={cn(buttonVariants({ variant: 'outline' }))}>
+          <Link to="/admin/programas" className={cn(buttonVariants({ variant: 'outline' }))}>
             Cancelar
           </Link>
         </div>
