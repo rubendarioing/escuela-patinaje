@@ -24,6 +24,8 @@ import { VenuesListPage } from '@/pages/admin/venues/VenuesListPage'
 import { VenueFormPage } from '@/pages/admin/venues/VenueFormPage'
 import { ProgramsListPage } from '@/pages/admin/programs/ProgramsListPage'
 import { ProgramFormPage } from '@/pages/admin/programs/ProgramFormPage'
+import { InstructorsListPage } from '@/pages/admin/instructors/InstructorsListPage'
+import { InstructorFormPage } from '@/pages/admin/instructors/InstructorFormPage'
 
 export const router = createBrowserRouter([
   {
@@ -66,6 +68,9 @@ export const router = createBrowserRouter([
               { path: 'programas', element: <ProgramsListPage /> },
               { path: 'programas/nuevo', element: <ProgramFormPage /> },
               { path: 'programas/:id/editar', element: <ProgramFormPage /> },
+              { path: 'instructores', element: <InstructorsListPage /> },
+              { path: 'instructores/nuevo', element: <InstructorFormPage /> },
+              { path: 'instructores/:id/editar', element: <InstructorFormPage /> },
             ],
           },
         ],
