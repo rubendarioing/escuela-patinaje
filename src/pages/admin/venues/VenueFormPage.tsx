@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createVenue, getVenueById, updateVenue } from '@/services/venues.service'
@@ -223,13 +223,19 @@ export function VenueFormPage() {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(buttonVariants({ variant: 'default' }), 'disabled:opacity-50')}
-        >
-          {isSubmitting ? 'Guardando…' : 'Guardar'}
-        </button>
+                <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(buttonVariants({ variant: 'default' }), 'disabled:opacity-50')}
+          >
+            {isSubmitting ? 'Guardando…' : 'Guardar'}
+          </button>
+          <Link to="/admin/sedes" className={cn(buttonVariants({ variant: 'outline' }))}>
+            Cancelar
+          </Link>
+        </div>
+
       </form>
     </div>
   )
