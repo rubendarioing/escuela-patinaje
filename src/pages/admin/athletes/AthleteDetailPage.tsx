@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getAthleteDetail, type AthleteDetail } from '@/services/athletes.service'
+import {
+  getAthleteDetail,
+  unlinkGuardianFromAthlete,
+  setPrimaryGuardian,
+  type AthleteDetail,
+  type AthleteGuardianLink,
+} from '@/services/athletes.service'
 import { ATHLETE_STATUS_OPTIONS } from '@/lib/validations/athlete.schema'
 import { calculateAge } from '@/lib/utils/age'
 import { DAY_LABELS, formatScheduleRange } from '@/lib/utils/schedule'
@@ -8,6 +14,8 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageHeader } from '@/components/common/PageHeader'
 import { StatusBadge } from '@/components/common/StatusBadge'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { LinkGuardianDialog } from '@/pages/admin/athletes/LinkGuardianDialog'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +35,11 @@ export function AthleteDetailPage() {
   const [detail, setDetail] = useState<AthleteDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
+  const [pendingUnlink, setPendingUnlink] = useState<AthleteGuardianLink | null>(null)
+  const [isUnlinking, setIsUnlinking] = useState(false)
+  const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -51,17 +64,40 @@ export function AthleteDetailPage() {
     }
   }, [id, retryKey])
 
-  if (error)
-    return (
-      <ErrorState
-        message={error}
-        onRetry={() => {
-          setError(null)
-          setDetail(null)
-          setRetryKey((k) => k + 1)
-        }}
-      />
-    )
+  const refetch = () => {
+    setError(null)
+    setDetail(null)
+    setRetryKey((k) => k + 1)
+  }
+
+  const handleUnlink = async () => {
+    if (!id || !pendingUnlink) return
+    setIsUnlinking(true)
+    try {
+      await unlinkGuardianFromAthlete(id, pendingUnlink.guardianId)
+      refetch()
+    } catch {
+      setError('No se pudo desvincular al acudiente.')
+    } finally {
+      setIsUnlinking(false)
+      setPendingUnlink(null)
+    }
+  }
+
+  const handleSetPrimary = async (guardianId: string) => {
+    if (!id) return
+    setSettingPrimaryId(guardianId)
+    try {
+      await setPrimaryGuardian(id, guardianId)
+      refetch()
+    } catch {
+      setError('No se pudo actualizar el acudiente principal.')
+    } finally {
+      setSettingPrimaryId(null)
+    }
+  }
+
+  if (error) return <ErrorState message={error} onRetry={refetch} />
   if (!detail) return <LoadingState label="Cargando deportista…" />
 
   const { athlete } = detail
@@ -117,20 +153,51 @@ export function AthleteDetailPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-slate-900">Acudientes</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Acudientes</h2>
+          <button
+            type="button"
+            onClick={() => setIsLinkDialogOpen(true)}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+          >
+            Vincular acudiente
+          </button>
+        </div>
+
         {detail.guardians.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">Sin acudientes asociados todavía.</p>
         ) : (
           <ul className="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200">
             {detail.guardians.map((g) => (
-              <li key={g.guardianId} className="p-3 text-sm">
-                <p className="font-medium text-slate-900">
-                  {g.firstName} {g.lastName}{' '}
-                  {g.isPrimary && <span className="text-xs text-sky-700">(principal)</span>}
-                </p>
-                <p className="text-slate-500">
-                  {g.relationship} · {g.phone ?? g.whatsapp ?? g.email ?? 'sin contacto'}
-                </p>
+              <li key={g.guardianId} className="flex items-center justify-between p-3 text-sm">
+                <div>
+                  <p className="font-medium text-slate-900">
+                    {g.firstName} {g.lastName}{' '}
+                    {g.isPrimary && <span className="text-xs text-sky-700">(principal)</span>}
+                  </p>
+                  <p className="text-slate-500">
+                    {g.relationship} · {g.phone ?? g.whatsapp ?? g.email ?? 'sin contacto'}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {!g.isPrimary && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSetPrimary(g.guardianId)}
+                      disabled={settingPrimaryId === g.guardianId}
+                      className="text-sky-700 hover:underline disabled:opacity-50"
+                    >
+                      {settingPrimaryId === g.guardianId ? 'Guardando…' : 'Marcar como principal'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPendingUnlink(g)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Desvincular
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -160,6 +227,32 @@ export function AthleteDetailPage() {
           </ul>
         )}
       </section>
+
+      {id && isLinkDialogOpen && (
+        <LinkGuardianDialog          
+          athleteId={id}
+          excludeGuardianIds={detail.guardians.map((g) => g.guardianId)}
+          onLinked={() => {
+            setIsLinkDialogOpen(false)
+            refetch()
+          }}
+          onClose={() => setIsLinkDialogOpen(false)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={pendingUnlink !== null}
+        title="Desvincular acudiente"
+        description={
+          pendingUnlink
+            ? `¿Confirmas desvincular a ${pendingUnlink.firstName} ${pendingUnlink.lastName}?`
+            : undefined
+        }
+        confirmLabel={isUnlinking ? 'Guardando…' : 'Confirmar'}
+        isDanger
+        onConfirm={handleUnlink}
+        onCancel={() => setPendingUnlink(null)}
+      />
     </div>
   )
 }
