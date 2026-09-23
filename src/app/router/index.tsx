@@ -20,6 +20,8 @@ import { ProtectedRoute } from '@/app/router/ProtectedRoute'
 import { LoginPage } from '@/pages/admin/LoginPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
 import { AdminLayout } from '@/components/layout/admin/AdminLayout'
+import { VenuesListPage } from '@/pages/admin/venues/VenuesListPage'
+import { VenueFormPage } from '@/pages/admin/venues/VenueFormPage'
 
 export const router = createBrowserRouter([
   {
@@ -54,7 +56,12 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <AdminLayout />,
-            children: [{ index: true, element: <AdminDashboardPage /> }],
+            children: [
+              { index: true, element: <AdminDashboardPage /> },
+              { path: 'sedes', element: <VenuesListPage /> },
+              { path: 'sedes/nueva', element: <VenueFormPage /> },
+              { path: 'sedes/:id/editar', element: <VenueFormPage /> },
+            ],
           },
         ],
       },
