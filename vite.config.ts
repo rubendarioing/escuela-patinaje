@@ -9,10 +9,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // El Service Worker NO se registra todavía: se activa en el paso 49
+      // El Service Worker se registra a mano, desde PwaUpdatePrompt (paso 49)
       injectRegister: false,
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'offline.html'],
       manifest: {
         name: 'Escuela de Patinaje',
         short_name: 'Patinaje',
@@ -32,6 +32,35 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            // Cada navegación entre páginas: intenta la red primero,
+            // y si falla y tampoco hay nada en caché, muestra offline.html
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-cache',
+              networkTimeoutSeconds: 3,
+              plugins: [
+                {
+                  // "caches" es global del Service Worker (navegador), no de Node;
+                  // este archivo corre en Node al compilar, de ahí el "any".
+                  handlerDidError: async () =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (await (globalThis as any).caches?.match('/offline.html')) ?? Response.error(),
+                },
+              ],
+            },
+          },
+          {
+            // Nunca cachear respuestas de Supabase (regla de seguridad del plan)
+            urlPattern: ({ url }) => url.hostname.endsWith('.supabase.co'),
+            handler: 'NetworkOnly',
           },
         ],
       },
