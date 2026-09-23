@@ -242,3 +242,54 @@ export const getAthleteDetail = async (id: string): Promise<AthleteDetail | null
     })),
   }
 }
+
+// ---- Gestión de la relación deportista-acudiente ----
+
+export const linkGuardianToAthlete = async (
+  athleteId: string,
+  guardianId: string,
+  relationship: string,
+  isPrimary: boolean,
+): Promise<void> => {
+  if (isPrimary) {
+    const { error: unsetError } = await supabase
+      .from('athlete_guardians')
+      .update({ is_primary: false })
+      .eq('athlete_id', athleteId)
+      .eq('is_primary', true)
+    if (unsetError) throw unsetError
+  }
+
+  const { error } = await supabase
+    .from('athlete_guardians')
+    .insert({ athlete_id: athleteId, guardian_id: guardianId, relationship, is_primary: isPrimary })
+  if (error) throw error
+}
+
+export const unlinkGuardianFromAthlete = async (
+  athleteId: string,
+  guardianId: string,
+): Promise<void> => {
+  const { error } = await supabase
+    .from('athlete_guardians')
+    .delete()
+    .eq('athlete_id', athleteId)
+    .eq('guardian_id', guardianId)
+  if (error) throw error
+}
+
+export const setPrimaryGuardian = async (athleteId: string, guardianId: string): Promise<void> => {
+  const { error: unsetError } = await supabase
+    .from('athlete_guardians')
+    .update({ is_primary: false })
+    .eq('athlete_id', athleteId)
+    .eq('is_primary', true)
+  if (unsetError) throw unsetError
+
+  const { error } = await supabase
+    .from('athlete_guardians')
+    .update({ is_primary: true })
+    .eq('athlete_id', athleteId)
+    .eq('guardian_id', guardianId)
+  if (error) throw error
+}
