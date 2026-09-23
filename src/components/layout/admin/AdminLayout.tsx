@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AdminSidebar } from '@/components/layout/admin/AdminSidebar'
 import { AdminHeader } from '@/components/layout/admin/AdminHeader'
 import { AdminContent } from '@/components/layout/admin/AdminContent'
+import { LoadingState } from '@/components/common/LoadingState'
 
 export function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -25,7 +26,9 @@ export function AdminLayout() {
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
         <AdminContent>
-          <Outlet />
+          <Suspense fallback={<LoadingState />}>
+            <Outlet />
+          </Suspense>
         </AdminContent>
       </div>
     </div>

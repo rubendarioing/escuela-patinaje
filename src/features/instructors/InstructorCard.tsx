@@ -12,6 +12,8 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
           <img
             src={instructor.photoUrl}
             alt={`${instructor.firstName} ${instructor.lastName}`}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover"
           />
         )}

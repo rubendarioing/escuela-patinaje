@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
 import type { Venue } from '@/types/venue'
 import type { VenueFormValues } from '@/lib/validations/venue.schema'
+import { getSchedules } from '@/services/schedules.service'
 
 type VenueRow = Tables<'venues'>
 
@@ -49,7 +50,6 @@ export const getVenueBySlug = async (slug: string): Promise<Venue | null> => {
 
 // Horarios activos de una sede, usado en la página de detalle
 export const getSchedulesByVenueId = async (venueId: string) => {
-  const { getSchedules } = await import('@/services/schedules.service')
   const schedules = await getSchedules()
   return schedules.filter((s) => s.venueId === venueId)
 }
