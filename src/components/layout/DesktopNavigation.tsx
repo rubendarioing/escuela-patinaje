@@ -11,7 +11,7 @@ type DesktopNavigationProps = {
 
 export function DesktopNavigation({ links }: DesktopNavigationProps) {
   return (
-    <nav className="hidden gap-6 sm:flex">
+    <nav className="hidden gap-5 lg:flex">
       {links.map((link) => (
         <NavLink
           key={link.to}

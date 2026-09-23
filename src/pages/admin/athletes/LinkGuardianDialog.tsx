@@ -110,7 +110,10 @@ export function LinkGuardianDialog({
             </p>
           ) : (
             filteredGuardians.map((g) => (
-              <label key={g.id} className="flex items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50">
+              <label
+                key={g.id}
+                className="flex items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
+              >
                 <input
                   type="radio"
                   name="guardian"
@@ -118,7 +121,8 @@ export function LinkGuardianDialog({
                   onChange={() => setSelectedId(g.id)}
                 />
                 <span>
-                  {g.firstName} {g.lastName} <span className="text-slate-400">{g.phone ?? g.email ?? ''}</span>
+                  {g.firstName} {g.lastName}{' '}
+                  <span className="text-slate-400">{g.phone ?? g.email ?? ''}</span>
                 </span>
               </label>
             ))
@@ -141,7 +145,11 @@ export function LinkGuardianDialog({
             </select>
           </label>
           <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={isPrimary}
+              onChange={(e) => setIsPrimary(e.target.checked)}
+            />
             Es el acudiente principal
           </label>
         </div>
@@ -149,7 +157,11 @@ export function LinkGuardianDialog({
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
         <div className="mt-4 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: 'outline' }))}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(buttonVariants({ variant: 'outline' }))}
+          >
             Cancelar
           </button>
           <button
