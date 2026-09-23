@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { ScheduleCard } from '@/features/schedules/ScheduleCard'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -78,6 +79,12 @@ export function ProgramDetailPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title={program.name}
+        description={
+          program.description ?? `Programa ${program.name} de la escuela de patinaje Prados Skate.`
+        }
+      />
       <SectionTitle
         title={program.name}
         subtitle={formatAgeRange(program.minAge, program.maxAge)}

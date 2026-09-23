@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { PageContainer } from '@/components/common/PageContainer'
+import { Seo } from '@/components/common/Seo'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export function NotFoundPage() {
   return (
     <PageContainer>
+      <Seo title="Página no encontrada" description="La página que buscas no existe." noIndex />
       <section className="py-10 text-center">
         <h1 className="text-4xl font-bold text-slate-900">404</h1>
         <p className="mt-2 text-slate-600">La página que buscas no existe.</p>

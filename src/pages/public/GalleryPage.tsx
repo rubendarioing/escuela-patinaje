@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { galleryItems } from '@/features/gallery/gallery.data'
 
 export function GalleryPage() {
@@ -20,6 +21,7 @@ export function GalleryPage() {
 
   return (
     <PageContainer>
+      <Seo title="Galería" description="Fotos de las clases y actividades de Prados Skate." />
       <SectionTitle title="Galería" subtitle="Momentos de nuestras clases." level="h1" />
       <p className="text-xs text-slate-600">
         Fotos de ejemplo. Se reemplazan por imágenes reales en el paso 37.

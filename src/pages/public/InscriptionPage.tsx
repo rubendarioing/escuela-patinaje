@@ -14,6 +14,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { DAY_LABELS, formatScheduleRange } from '@/lib/utils/schedule'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -220,6 +221,10 @@ export function InscriptionPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title="Inscripción"
+        description="Inscribe a tu hijo o hija en la escuela de patinaje. Elige sede, programa y horario."
+      />
       <SectionTitle
         title="Inscripción"
         subtitle="Completa el formulario y nos pondremos en contacto."
