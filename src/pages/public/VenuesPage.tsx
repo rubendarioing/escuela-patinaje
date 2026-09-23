@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { VenueCard } from '@/features/venues/VenueCard'
 
 export function VenuesPage() {
@@ -42,6 +43,7 @@ export function VenuesPage() {
 
   return (
     <PageContainer>
+      <Seo title="Sedes" description="Sedes de la escuela de patinaje en Zipaquirá." />
       <SectionTitle title="Sedes" subtitle="Puntos de entrenamiento de la escuela." level="h1" />
       {venues.length === 0 ? (
         <EmptyState title="No hay sedes disponibles por ahora." />

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { aboutValues } from '@/pages/public/aboutContent'
@@ -8,6 +9,10 @@ import { aboutValues } from '@/pages/public/aboutContent'
 export function AboutPage() {
   return (
     <PageContainer>
+      <Seo
+        title="Nosotros"
+        description="Conoce la historia, misión y metodología de Prados Skate, escuela de patinaje en Zipaquirá."
+      />
       <SectionTitle title="Nosotros" level="h1" />
       <p className="text-xs text-slate-600">
         Contenido de ejemplo. Se reemplaza por la información real de la escuela antes del

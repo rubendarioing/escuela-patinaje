@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { ScheduleCard } from '@/features/schedules/ScheduleCard'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -71,6 +72,13 @@ export function VenueDetailPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title={venue.name}
+        description={
+          venue.description ??
+          `Sede ${venue.name} de la escuela de patinaje Prados Skate en ${venue.city ?? 'Zipaquirá'}.`
+        }
+      />
       <SectionTitle title={venue.name} subtitle={venue.city ?? undefined} level="h1" />
 
       <p className="text-slate-600">{venue.address}</p>

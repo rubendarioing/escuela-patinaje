@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { siteConfig, getWhatsAppUrl } from '@/lib/siteConfig'
 import { InstagramIcon, FacebookIcon } from '@/components/common/SocialIcons'
 
@@ -43,6 +44,10 @@ export function ContactPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title="Contacto"
+        description="Escríbenos por WhatsApp o correo. Encuentra nuestras sedes en Zipaquirá."
+      />
       <SectionTitle title="Contacto" subtitle="Escríbenos por WhatsApp o correo." level="h1" />
 
       <section className="grid gap-4 sm:grid-cols-2">

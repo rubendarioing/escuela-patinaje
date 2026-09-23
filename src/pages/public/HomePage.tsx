@@ -12,6 +12,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getWhatsAppUrl } from '@/lib/siteConfig'
@@ -67,6 +68,10 @@ export function HomePage() {
 
   return (
     <PageContainer>
+      <Seo
+        title="Inicio"
+        description="Escuela de patinaje en Zipaquirá para niños desde los 4 años. Programas, horarios, sedes e inscripción."
+      />
       {/* Hero */}
       <section className="grid items-center gap-6 sm:grid-cols-2">
         <div>

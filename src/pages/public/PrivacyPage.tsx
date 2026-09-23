@@ -2,10 +2,16 @@ import { siteConfig } from '@/lib/siteConfig'
 import { POLICY_VERSION } from '@/lib/policyVersion'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 
 export function PrivacyPage() {
   return (
     <PageContainer>
+      <Seo
+        title="Política de privacidad"
+        description="Política de tratamiento de datos personales de Prados Skate."
+        noIndex
+      />
       <SectionTitle title="Política de privacidad" level="h1" />
 
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">

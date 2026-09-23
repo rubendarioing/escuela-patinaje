@@ -1,5 +1,6 @@
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import {
   Accordion,
   AccordionItem,
@@ -11,6 +12,10 @@ import { faqItems } from '@/features/faq/faq.data'
 export function FaqPage() {
   return (
     <PageContainer>
+      <Seo
+        title="Preguntas frecuentes"
+        description="Resolvemos las dudas más comunes sobre las clases de patinaje."
+      />
       <SectionTitle title="Preguntas frecuentes" level="h1" />
       <Accordion>
         {faqItems.map((item, index) => (

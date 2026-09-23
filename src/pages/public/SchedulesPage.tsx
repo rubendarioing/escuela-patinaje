@@ -5,6 +5,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { ScheduleCard } from '@/features/schedules/ScheduleCard'
 import { DAY_LABELS } from '@/lib/utils/schedule'
 import { getSchedules, getScheduleAvailability } from '@/services/schedules.service'
@@ -93,6 +94,10 @@ export function SchedulesPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title="Horarios"
+        description="Consulta horarios de clases de patinaje por sede, programa, día y edad, con cupos disponibles."
+      />
       <SectionTitle title="Horarios" subtitle="Filtra por sede, programa, día o edad." level="h1" />
 
       <div className="grid gap-3 sm:grid-cols-4">

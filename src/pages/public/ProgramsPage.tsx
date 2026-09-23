@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { ProgramCard } from '@/features/programs/ProgramCard'
 
 export function ProgramsPage() {
@@ -42,6 +43,10 @@ export function ProgramsPage() {
 
   return (
     <PageContainer>
+      <Seo
+        title="Programas"
+        description="Programas de patinaje por edades: niños desde 4 años y mayores de 7 años."
+      />
       <SectionTitle title="Programas" subtitle="Grupos disponibles en la escuela." level="h1" />
       {programs.length === 0 ? (
         <EmptyState title="No hay programas disponibles por ahora." />

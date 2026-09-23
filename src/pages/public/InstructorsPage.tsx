@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
+import { Seo } from '@/components/common/Seo'
 import { InstructorCard } from '@/features/instructors/InstructorCard'
 
 export function InstructorsPage() {
@@ -42,6 +43,7 @@ export function InstructorsPage() {
 
   return (
     <PageContainer>
+      <Seo title="Instructores" description="Conoce al equipo de instructores de Prados Skate." />
       <SectionTitle
         title="Instructores"
         subtitle="El equipo que acompaña a los deportistas."
