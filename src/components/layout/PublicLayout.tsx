@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { WhatsAppButton } from '@/components/common/WhatsAppButton'
+import { LoadingState } from '@/components/common/LoadingState'
 
 export function PublicLayout() {
   return (
@@ -16,7 +18,9 @@ export function PublicLayout() {
       <Header />
 
       <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        <Outlet />
+        <Suspense fallback={<LoadingState />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <Footer />

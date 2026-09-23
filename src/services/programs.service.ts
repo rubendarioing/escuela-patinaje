@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
 import type { ProgramFormValues } from '@/lib/validations/program.schema'
 import type { Program } from '@/types/program'
+import { getSchedules } from '@/services/schedules.service'
 
 type ProgramRow = Tables<'programs'>
 
@@ -44,7 +45,6 @@ export const getProgramBySlug = async (slug: string): Promise<Program | null> =>
 
 // Horarios activos de un programa, usado en la página de detalle
 export const getSchedulesByProgramId = async (programId: string) => {
-  const { getSchedules } = await import('@/services/schedules.service')
   const schedules = await getSchedules()
   return schedules.filter((s) => s.programId === programId)
 }

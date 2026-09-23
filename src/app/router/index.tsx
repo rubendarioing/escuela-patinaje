@@ -1,39 +1,41 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { PublicLayout } from '@/components/layout/PublicLayout'
-import { HomePage } from '@/pages/public/HomePage'
-import { NotFoundPage } from '@/pages/public/NotFoundPage'
 import { RouteErrorPage } from '@/pages/public/RouteErrorPage'
-import { ProgramsPage } from '@/pages/public/ProgramsPage'
-import { ProgramDetailPage } from '@/pages/public/ProgramDetailPage'
-import { VenuesPage } from '@/pages/public/VenuesPage'
-import { VenueDetailPage } from '@/pages/public/VenueDetailPage'
-import { SchedulesPage } from '@/pages/public/SchedulesPage'
-import { InstructorsPage } from '@/pages/public/InstructorsPage'
-import { AboutPage } from '@/pages/public/AboutPage'
-import { ContactPage } from '@/pages/public/ContactPage'
-import { GalleryPage } from '@/pages/public/GalleryPage'
-import { FaqPage } from '@/pages/public/FaqPage'
-import { PrivacyPage } from '@/pages/public/PrivacyPage'
-import { InscriptionPage } from '@/pages/public/InscriptionPage'
 import { AdminAuthLayout } from '@/app/providers/AdminAuthLayout'
 import { ProtectedRoute } from '@/app/router/ProtectedRoute'
-import { LoginPage } from '@/pages/admin/LoginPage'
-import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
 import { AdminLayout } from '@/components/layout/admin/AdminLayout'
-import { VenuesListPage } from '@/pages/admin/venues/VenuesListPage'
-import { VenueFormPage } from '@/pages/admin/venues/VenueFormPage'
-import { ProgramsListPage } from '@/pages/admin/programs/ProgramsListPage'
-import { ProgramFormPage } from '@/pages/admin/programs/ProgramFormPage'
-import { InstructorsListPage } from '@/pages/admin/instructors/InstructorsListPage'
-import { InstructorFormPage } from '@/pages/admin/instructors/InstructorFormPage'
-import { SchedulesListPage } from '@/pages/admin/schedules/SchedulesListPage'
-import { ScheduleFormPage } from '@/pages/admin/schedules/ScheduleFormPage'
-import { AthletesListPage } from '@/pages/admin/athletes/AthletesListPage'
-import { AthleteFormPage } from '@/pages/admin/athletes/AthleteFormPage'
-import { AthleteDetailPage } from '@/pages/admin/athletes/AthleteDetailPage'
-import { GuardiansListPage } from '@/pages/admin/guardians/GuardiansListPage'
-import { GuardianFormPage } from '@/pages/admin/guardians/GuardianFormPage'
-import { RegistrationsListPage } from '@/pages/admin/registrations/RegistrationsListPage'
+import {
+  HomePage,
+  NotFoundPage,
+  ProgramsPage,
+  ProgramDetailPage,
+  VenuesPage,
+  VenueDetailPage,
+  SchedulesPage,
+  InstructorsPage,
+  AboutPage,
+  ContactPage,
+  GalleryPage,
+  FaqPage,
+  PrivacyPage,
+  InscriptionPage,
+  LoginPage,
+  AdminDashboardPage,
+  VenuesListPage,
+  VenueFormPage,
+  ProgramsListPage,
+  ProgramFormPage,
+  InstructorsListPage,
+  InstructorFormPage,
+  SchedulesListPage,
+  ScheduleFormPage,
+  AthletesListPage,
+  AthleteFormPage,
+  AthleteDetailPage,
+  GuardiansListPage,
+  GuardianFormPage,
+  RegistrationsListPage,
+} from '@/app/router/lazyPages'
 
 export const router = createBrowserRouter([
   {
