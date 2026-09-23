@@ -22,6 +22,8 @@ import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
 import { AdminLayout } from '@/components/layout/admin/AdminLayout'
 import { VenuesListPage } from '@/pages/admin/venues/VenuesListPage'
 import { VenueFormPage } from '@/pages/admin/venues/VenueFormPage'
+import { ProgramsListPage } from '@/pages/admin/programs/ProgramsListPage'
+import { ProgramFormPage } from '@/pages/admin/programs/ProgramFormPage'
 
 export const router = createBrowserRouter([
   {
@@ -61,6 +63,9 @@ export const router = createBrowserRouter([
               { path: 'sedes', element: <VenuesListPage /> },
               { path: 'sedes/nueva', element: <VenueFormPage /> },
               { path: 'sedes/:id/editar', element: <VenueFormPage /> },
+              { path: 'programas', element: <ProgramsListPage /> },
+              { path: 'programas/nuevo', element: <ProgramFormPage /> },
+              { path: 'programas/:id/editar', element: <ProgramFormPage /> },
             ],
           },
         ],
