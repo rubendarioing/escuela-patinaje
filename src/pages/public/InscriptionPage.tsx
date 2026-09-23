@@ -223,6 +223,7 @@ export function InscriptionPage() {
       <SectionTitle
         title="Inscripción"
         subtitle="Completa el formulario y nos pondremos en contacto."
+        level="h1"
       />
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">

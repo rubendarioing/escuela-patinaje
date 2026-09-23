@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getAllGuardiansForAdmin, type GuardianListItem } from '@/services/guardians.service'
 import { linkGuardianToAthlete } from '@/services/athletes.service'
 import { buttonVariants } from '@/components/ui/button'
@@ -33,6 +34,7 @@ export function LinkGuardianDialog({
   const [isPrimary, setIsPrimary] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const dialogRef = useFocusTrap<HTMLDivElement>(true)
 
   useEffect(() => {
     let cancelled = false
@@ -90,7 +92,11 @@ export function LinkGuardianDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
-      <div className="w-full max-w-md rounded-lg bg-white p-5" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="w-full max-w-md rounded-lg bg-white p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-lg font-semibold text-slate-900">Vincular acudiente</h2>
 
         <input
@@ -122,7 +128,7 @@ export function LinkGuardianDialog({
                 />
                 <span>
                   {g.firstName} {g.lastName}{' '}
-                  <span className="text-slate-400">{g.phone ?? g.email ?? ''}</span>
+                  <span className="text-slate-600">{g.phone ?? g.email ?? ''}</span>
                 </span>
               </label>
             ))

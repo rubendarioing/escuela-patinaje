@@ -42,7 +42,7 @@ export function VenuesPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Sedes" subtitle="Puntos de entrenamiento de la escuela." />
+      <SectionTitle title="Sedes" subtitle="Puntos de entrenamiento de la escuela." level="h1" />
       {venues.length === 0 ? (
         <EmptyState title="No hay sedes disponibles por ahora." />
       ) : (

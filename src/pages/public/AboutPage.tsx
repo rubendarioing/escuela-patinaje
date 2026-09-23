@@ -8,8 +8,8 @@ import { aboutValues } from '@/pages/public/aboutContent'
 export function AboutPage() {
   return (
     <PageContainer>
-      <SectionTitle title="Nosotros" />
-      <p className="text-xs text-slate-400">
+      <SectionTitle title="Nosotros" level="h1" />
+      <p className="text-xs text-slate-600">
         Contenido de ejemplo. Se reemplaza por la información real de la escuela antes del
         lanzamiento.
       </p>

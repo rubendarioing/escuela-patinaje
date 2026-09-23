@@ -6,7 +6,7 @@ import { SectionTitle } from '@/components/common/SectionTitle'
 export function PrivacyPage() {
   return (
     <PageContainer>
-      <SectionTitle title="Política de privacidad" />
+      <SectionTitle title="Política de privacidad" level="h1" />
 
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
         <p className="font-semibold">Borrador pendiente de revisión legal.</p>
