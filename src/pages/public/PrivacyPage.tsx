@@ -19,8 +19,8 @@ export function PrivacyPage() {
         <p className="mt-1">
           Este texto es un punto de partida generado para el desarrollo del sitio. Antes de
           publicarlo en producción debe ser revisado y aprobado por la escuela y, si aplica, por un
-          abogado. En particular, falta confirmar quién es el responsable legal del tratamiento de
-          datos y su información de contacto.
+          abogado. En particular, falta confirmar el número de identificación (NIT o cédula, según
+          aplique) del responsable del tratamiento.
         </p>
       </div>
 
@@ -31,8 +31,10 @@ export function PrivacyPage() {
       <section>
         <h2 className="text-xl font-semibold text-slate-900">Responsable del tratamiento</h2>
         <p className="mt-2 text-slate-600">
-          [Pendiente: nombre o razón social del responsable legal de {siteConfig.name}, número de
-          identificación y datos de contacto para ejercer derechos de protección de datos.]
+          {siteConfig.name} es responsable del tratamiento de los datos personales recolectados a
+          través de este sitio. [Pendiente: número de identificación (NIT o cédula, según aplique)
+          para completar esta sección.] Los datos de contacto para ejercer derechos de protección de
+          datos están en la sección "Medios de contacto" más abajo.
         </p>
       </section>
 
