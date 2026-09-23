@@ -179,7 +179,7 @@ begin
     end;
   end loop;
 
--- document_types no tiene created_at (catálogo sin columnas de auditoría);
+  -- document_types no tiene created_at (catálogo sin columnas de auditoría);
   -- se prueba aparte con una columna que sí tiene.
   begin
     update document_types set name = name;
@@ -214,6 +214,180 @@ begin
 end;
 $$;
 
-select 'OK: todas las pruebas anónimas pasaron' as resultado;
+reset role;
+
+-- =====================================================================
+-- 4) Perfiles de staff para las pruebas: usamos el admin real (paso 11)
+-- y un manager de prueba creado a mano (Auth > Add user + Table Editor),
+-- porque admin_profiles.id es FK a auth.users y no se pueden insertar
+-- perfiles con UUIDs inventados desde el Editor SQL.
+-- =====================================================================
+select set_config('t.admin_profiles_baseline',
+  (select count(*) from admin_profiles)::text, true);
+
+-- =====================================================================
+-- 5) Como usuario autenticado SIN perfil de staff
+-- =====================================================================
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "55555555-5555-5555-5555-555555555555", "role": "authenticated"}';
+
+do $$
+declare
+  n int;
+  s text;
+  t text;
+  b boolean;
+begin
+  -- Puede seguir viendo lo público, igual que un visitante
+  select count(*) into n from venues where is_active;
+  assert n > 0, 'FALLA: usuario sin perfil no pudo leer sedes activas';
+
+  -- is_staff() / is_admin() sí se pueden ejecutar (a diferencia de anon), pero deben dar false
+  select is_staff() into b;
+  assert b = false, 'FALLA: is_staff() dio true para un usuario sin perfil';
+
+  select is_admin() into b;
+  assert b = false, 'FALLA: is_admin() dio true para un usuario sin perfil';
+
+  -- No puede leer tablas privadas
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations'] loop
+    begin
+      execute format('select count(*) from %I', t) into n;
+      assert n = 0, format('FALLA: usuario sin perfil ve %s filas de %s', n, t);
+    exception when insufficient_privilege then null;
+    end;
+  end loop;
+
+  -- No puede escribir nada
+  foreach s in array array[
+    $q$insert into venues (name, slug, address) values ('hack', 'hack', 'x')$q$,
+    $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
+    $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$
+  ] loop
+    begin
+      execute s;
+      raise exception 'FALLA: usuario sin perfil pudo ejecutar: %', s;
+    exception when insufficient_privilege then null;
+    end;
+  end loop;
+end;
+$$;
+
+reset role;
+
+-- =====================================================================
+-- 6) Como manager
+-- =====================================================================
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "36da1201-65fa-44c1-8eff-fd76a7a67f30", "role": "authenticated"}';
+
+do $$
+declare
+  n int;
+  b boolean;
+  v_athlete_id uuid;
+  v_guardian_id uuid;
+begin
+  select is_staff() into b;
+  assert b = true, 'FALLA: is_staff() dio false para un manager activo';
+
+  select is_admin() into b;
+  assert b = false, 'FALLA: is_admin() dio true para un manager';
+
+  -- Puede leer y crear en tablas de negocio
+  insert into venues (name, slug, address) values ('TEST manager sede', 'test-manager-sede', 'x');
+
+  insert into athletes (first_name, last_name, birth_date)
+  values ('TEST', 'ManagerDeportista', '2016-01-01')
+  returning id into v_athlete_id;
+
+  insert into guardians (first_name, last_name, phone)
+  values ('TEST', 'ManagerAcudiente', '3000000001')
+  returning id into v_guardian_id;
+
+  insert into athlete_guardians (athlete_id, guardian_id, is_primary)
+  values (v_athlete_id, v_guardian_id, true);
+
+  update venues set description = 'editado por manager' where slug = 'test-manager-sede';
+
+  -- Puede eliminar la relación deportista-acudiente (excepción D9)
+  delete from athlete_guardians where athlete_id = v_athlete_id and guardian_id = v_guardian_id;
+
+  -- No puede borrar deportistas (no hay política DELETE ahí)
+  begin
+    delete from athletes where id = v_athlete_id;
+    get diagnostics n = row_count;
+    assert n = 0, 'FALLA: manager pudo borrar un deportista';
+  exception when insufficient_privilege then null;
+  end;
+
+  -- No puede crear admin_profiles (puede fallar por RLS o, si RLS lo dejara
+  -- pasar, por la FK hacia auth.users; cualquiera de las dos formas confirma
+  -- que la fila no se creó)
+  begin
+    insert into admin_profiles (id, full_name, role) values (gen_random_uuid(), 'hack', 'manager');
+    raise exception 'FALLA: manager pudo crear un admin_profile';
+  exception when insufficient_privilege then null;
+  when foreign_key_violation then null;
+  end;
+
+  -- No puede editar el role de otro perfil de staff
+  begin
+    update admin_profiles set role = 'admin' where id = '36da1201-65fa-44c1-8eff-fd76a7a67f30';
+    get diagnostics n = row_count;
+    assert n = 0, 'FALLA: manager pudo editar admin_profiles';
+  exception when insufficient_privilege then null;
+  end;
+
+  -- Solo ve su propia fila en admin_profiles, no las de otros
+  select count(*) into n from admin_profiles;
+  assert n = 1, format('FALLA: manager ve %s filas de admin_profiles, esperaba 1 (la propia)', n);
+end;
+$$;
+
+reset role;
+
+-- Limpiar lo que creó el manager (como postgres; también se revertiría solo con el rollback final)
+delete from athletes where last_name = 'ManagerDeportista';
+delete from guardians where last_name = 'ManagerAcudiente';
+delete from venues where slug = 'test-manager-sede';
+
+-- =====================================================================
+-- 7) Como admin
+-- =====================================================================
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "2ea69ac4-704d-472d-8327-f79ad2fd6555", "role": "authenticated"}';
+
+do $$
+declare
+  n int;
+  b boolean;
+begin
+  select is_staff() into b;
+  assert b = true, 'FALLA: is_staff() dio false para un admin activo';
+
+  select is_admin() into b;
+  assert b = true, 'FALLA: is_admin() dio false para un admin activo';
+
+  -- Ve TODOS los admin_profiles, no solo el propio
+  select count(*) into n from admin_profiles;
+  assert n = current_setting('t.admin_profiles_baseline')::int,
+    format('FALLA: admin ve %s filas de admin_profiles, esperaba %s',
+      n, current_setting('t.admin_profiles_baseline')::int);
+
+  -- Puede editar admin_profiles existentes (no probamos "crear" uno nuevo
+  -- aquí porque requeriría otra cuenta real de Auth)
+  update admin_profiles set full_name = 'TEST Manager (editado por admin)'
+    where id = '36da1201-65fa-44c1-8eff-fd76a7a67f30';
+
+  -- Sigue pudiendo operar tablas de negocio, igual que el manager
+  insert into programs (name, slug) values ('TEST admin programa', 'test-admin-programa');
+  update programs set is_active = false where slug = 'test-admin-programa';
+end;
+$$;
+
+reset role;
+
+select 'OK: todas las pruebas (anónimo, sin perfil, manager, admin) pasaron' as resultado;
 
 rollback;
