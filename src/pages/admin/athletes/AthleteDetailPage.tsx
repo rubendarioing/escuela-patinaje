@@ -229,7 +229,7 @@ export function AthleteDetailPage() {
       </section>
 
       {id && isLinkDialogOpen && (
-        <LinkGuardianDialog          
+        <LinkGuardianDialog
           athleteId={id}
           excludeGuardianIds={detail.guardians.map((g) => g.guardianId)}
           onLinked={() => {

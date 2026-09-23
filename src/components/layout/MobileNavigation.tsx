@@ -15,7 +15,7 @@ export function MobileNavigation({ links }: MobileNavigationProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
-    <div className="sm:hidden">
+    <div className="lg:hidden">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}

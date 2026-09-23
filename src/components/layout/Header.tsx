@@ -29,7 +29,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <Link
             to="/inscripcion"
-            className={cn(buttonVariants({ variant: 'default' }), 'hidden sm:inline-flex')}
+            className={cn(buttonVariants({ variant: 'default' }), 'hidden lg:inline-flex')}
           >
             Inscríbete
           </Link>
