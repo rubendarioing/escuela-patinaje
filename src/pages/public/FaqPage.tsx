@@ -11,7 +11,7 @@ import { faqItems } from '@/features/faq/faq.data'
 export function FaqPage() {
   return (
     <PageContainer>
-      <SectionTitle title="Preguntas frecuentes" />
+      <SectionTitle title="Preguntas frecuentes" level="h1" />
       <Accordion>
         {faqItems.map((item, index) => (
           <AccordionItem key={item.question} value={String(index)}>

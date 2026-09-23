@@ -81,6 +81,7 @@ export function ProgramDetailPage() {
       <SectionTitle
         title={program.name}
         subtitle={formatAgeRange(program.minAge, program.maxAge)}
+        level="h1"
       />
 
       {program.description && <p className="text-slate-600">{program.description}</p>}

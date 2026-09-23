@@ -93,7 +93,7 @@ export function SchedulesPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Horarios" subtitle="Filtra por sede, programa, día o edad." />
+      <SectionTitle title="Horarios" subtitle="Filtra por sede, programa, día o edad." level="h1" />
 
       <div className="grid gap-3 sm:grid-cols-4">
         <select

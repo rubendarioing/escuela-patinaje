@@ -43,7 +43,7 @@ export function ContactPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Contacto" subtitle="Escríbenos por WhatsApp o correo." />
+      <SectionTitle title="Contacto" subtitle="Escríbenos por WhatsApp o correo." level="h1" />
 
       <section className="grid gap-4 sm:grid-cols-2">
         <a

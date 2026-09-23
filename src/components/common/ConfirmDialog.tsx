@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +24,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(open)
+
   useEffect(() => {
     if (!open) return
     const onKeyDown = (e: KeyboardEvent) => {
@@ -42,7 +45,11 @@ export function ConfirmDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onCancel}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-5" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="w-full max-w-sm rounded-lg bg-white p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         {description && <p className="mt-2 text-sm text-slate-600">{description}</p>}
         <div className="mt-5 flex justify-end gap-3">

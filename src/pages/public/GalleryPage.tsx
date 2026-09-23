@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
 import { galleryItems } from '@/features/gallery/gallery.data'
@@ -6,6 +7,7 @@ import { galleryItems } from '@/features/gallery/gallery.data'
 export function GalleryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = galleryItems.find((item) => item.id === selectedId) ?? null
+  const dialogRef = useFocusTrap<HTMLDivElement>(selected !== null)
 
   useEffect(() => {
     if (!selected) return
@@ -18,8 +20,8 @@ export function GalleryPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Galería" subtitle="Momentos de nuestras clases." />
-      <p className="text-xs text-slate-400">
+      <SectionTitle title="Galería" subtitle="Momentos de nuestras clases." level="h1" />
+      <p className="text-xs text-slate-600">
         Fotos de ejemplo. Se reemplazan por imágenes reales en el paso 37.
       </p>
 
@@ -45,6 +47,7 @@ export function GalleryPage() {
           onClick={() => setSelectedId(null)}
         >
           <div
+            ref={dialogRef}
             className={`flex aspect-square w-full max-w-md items-center justify-center rounded-lg p-6 text-center text-slate-700 ${selected.color}`}
             onClick={(e) => e.stopPropagation()}
           >

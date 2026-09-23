@@ -42,7 +42,11 @@ export function InstructorsPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Instructores" subtitle="El equipo que acompaña a los deportistas." />
+      <SectionTitle
+        title="Instructores"
+        subtitle="El equipo que acompaña a los deportistas."
+        level="h1"
+      />
       {instructors.length === 0 ? (
         <EmptyState title="No hay instructores disponibles por ahora." />
       ) : (

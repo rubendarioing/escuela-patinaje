@@ -37,7 +37,7 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
         </NavLink>
       ))}
       <div className="my-2 border-t" />
-      <p className="px-3 text-xs text-slate-400">
+      <p className="px-3 text-xs text-slate-600">
         {adminProfile?.fullName} · {adminProfile?.role}
       </p>
       <button

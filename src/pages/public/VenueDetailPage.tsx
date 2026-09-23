@@ -71,7 +71,7 @@ export function VenueDetailPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title={venue.name} subtitle={venue.city ?? undefined} />
+      <SectionTitle title={venue.name} subtitle={venue.city ?? undefined} level="h1" />
 
       <p className="text-slate-600">{venue.address}</p>
       {venue.description && <p className="text-slate-600">{venue.description}</p>}

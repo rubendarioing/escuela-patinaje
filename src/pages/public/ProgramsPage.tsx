@@ -42,7 +42,7 @@ export function ProgramsPage() {
 
   return (
     <PageContainer>
-      <SectionTitle title="Programas" subtitle="Grupos disponibles en la escuela." />
+      <SectionTitle title="Programas" subtitle="Grupos disponibles en la escuela." level="h1" />
       {programs.length === 0 ? (
         <EmptyState title="No hay programas disponibles por ahora." />
       ) : (

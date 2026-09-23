@@ -266,7 +266,7 @@ export function RegistrationsListPage() {
                     </button>
                   ))}
                   {NEXT_ACTIONS[r.status]?.length === 0 && (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-slate-600">—</span>
                   )}
                 </div>
               ),

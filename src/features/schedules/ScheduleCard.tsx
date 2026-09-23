@@ -22,7 +22,7 @@ export function ScheduleCard({ schedule, enrollHref, availableSpots }: ScheduleC
         {formatScheduleRange(schedule.startTime, schedule.endTime)}
       </p>
       {schedule.leadInstructor && (
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-600">
           Instructor: {schedule.leadInstructor.firstName} {schedule.leadInstructor.lastName}
         </p>
       )}
