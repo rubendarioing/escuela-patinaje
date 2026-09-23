@@ -28,6 +28,9 @@ import { InstructorsListPage } from '@/pages/admin/instructors/InstructorsListPa
 import { InstructorFormPage } from '@/pages/admin/instructors/InstructorFormPage'
 import { SchedulesListPage } from '@/pages/admin/schedules/SchedulesListPage'
 import { ScheduleFormPage } from '@/pages/admin/schedules/ScheduleFormPage'
+import { AthletesListPage } from '@/pages/admin/athletes/AthletesListPage'
+import { AthleteFormPage } from '@/pages/admin/athletes/AthleteFormPage'
+import { AthleteDetailPage } from '@/pages/admin/athletes/AthleteDetailPage'
 
 export const router = createBrowserRouter([
   {
@@ -76,6 +79,10 @@ export const router = createBrowserRouter([
               { path: 'horarios', element: <SchedulesListPage /> },
               { path: 'horarios/nuevo', element: <ScheduleFormPage /> },
               { path: 'horarios/:id/editar', element: <ScheduleFormPage /> },
+              { path: 'deportistas', element: <AthletesListPage /> },
+              { path: 'deportistas/nuevo', element: <AthleteFormPage /> },
+              { path: 'deportistas/:id', element: <AthleteDetailPage /> },
+              { path: 'deportistas/:id/editar', element: <AthleteFormPage /> },
             ],
           },
         ],
