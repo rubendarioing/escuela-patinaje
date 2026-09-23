@@ -525,6 +525,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      save_training_schedule: { Args: { payload: Json }; Returns: string }
       submit_preregistration: { Args: { payload: Json }; Returns: Json }
     }
     Enums: {
