@@ -33,6 +33,7 @@ import { AthleteFormPage } from '@/pages/admin/athletes/AthleteFormPage'
 import { AthleteDetailPage } from '@/pages/admin/athletes/AthleteDetailPage'
 import { GuardiansListPage } from '@/pages/admin/guardians/GuardiansListPage'
 import { GuardianFormPage } from '@/pages/admin/guardians/GuardianFormPage'
+import { RegistrationsListPage } from '@/pages/admin/registrations/RegistrationsListPage'
 
 export const router = createBrowserRouter([
   {
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
               { path: 'acudientes', element: <GuardiansListPage /> },
               { path: 'acudientes/nuevo', element: <GuardianFormPage /> },
               { path: 'acudientes/:id/editar', element: <GuardianFormPage /> },
+              { path: 'inscripciones', element: <RegistrationsListPage /> },
             ],
           },
         ],
