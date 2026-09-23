@@ -4,7 +4,10 @@ type LoadingStateProps = {
 
 export function LoadingState({ label = 'Cargando…' }: LoadingStateProps) {
   return (
-    <div role="status" className="flex flex-col items-center justify-center gap-3 py-12">
+    <div
+      role="status"
+      className="flex min-h-[70vh] flex-col items-center justify-center gap-3 py-12"
+    >
       <div
         className="h-8 w-8 animate-spin rounded-full border-4 border-sky-200 border-t-sky-700"
         aria-hidden="true"
