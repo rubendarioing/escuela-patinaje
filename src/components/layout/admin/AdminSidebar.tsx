@@ -10,6 +10,7 @@ const links = [
   { to: '/admin/deportistas', label: 'Deportistas' },
   { to: '/admin/acudientes', label: 'Acudientes' },
   { to: '/admin/inscripciones', label: 'Inscripciones' },
+  { to: '/admin/pagos', label: 'Pagos' },
 ]
 
 type AdminSidebarProps = {

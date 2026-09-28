@@ -266,6 +266,47 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          athlete_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          period_start: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          athlete_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          period_start: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          athlete_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          period_start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           created_at: string
