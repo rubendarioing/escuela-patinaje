@@ -35,6 +35,7 @@ import {
   GuardiansListPage,
   GuardianFormPage,
   RegistrationsListPage,
+  PaymentsListPage,
 } from '@/app/router/lazyPages'
 
 export const router = createBrowserRouter([
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
               { path: 'acudientes/nuevo', element: <GuardianFormPage /> },
               { path: 'acudientes/:id/editar', element: <GuardianFormPage /> },
               { path: 'inscripciones', element: <RegistrationsListPage /> },
+              { path: 'pagos', element: <PaymentsListPage /> },
             ],
           },
         ],

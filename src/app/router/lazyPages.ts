@@ -105,3 +105,9 @@ export const RegistrationsListPage = lazy(() =>
     default: m.RegistrationsListPage,
   })),
 )
+export const PaymentsListPage = lazy(() =>
+  import('@/pages/admin/payments/PaymentsListPage').then((m) => ({
+    default: m.PaymentsListPage,
+  })),
+)
+
