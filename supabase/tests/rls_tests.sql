@@ -129,7 +129,7 @@ begin
   end;
 
   -- C) Tablas privadas: el público no ve nada
-  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations'] loop
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'] loop
     begin
       execute format('select count(*) from %I', t) into n;
       assert n = 0, format('FALLA: anon ve %s filas de %s', n, t);
@@ -149,7 +149,8 @@ begin
     $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
     $q$insert into guardians (first_name, last_name, email) values ('hack', 'hack', 'hack@example.com')$q$,
     $q$insert into athlete_guardians (athlete_id, guardian_id) values (gen_random_uuid(), gen_random_uuid())$q$,
-    $q$insert into registrations (athlete_id, schedule_id) values (gen_random_uuid(), gen_random_uuid())$q$
+    $q$insert into registrations (athlete_id, schedule_id) values (gen_random_uuid(), gen_random_uuid())$q$,
+    $q$insert into payments (athlete_id, amount, period_start) values (gen_random_uuid(), 40000, current_date)$q$
   ] loop
     begin
       execute s;
@@ -162,7 +163,7 @@ begin
   foreach t in array array[
     'venues', 'programs', 'instructors', 'training_schedules',
     'schedule_instructors', 'admin_profiles',
-    'athletes', 'guardians', 'athlete_guardians', 'registrations'
+    'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'
   ] loop
     begin
       execute format('update %I set created_at = created_at', t);
@@ -250,7 +251,7 @@ begin
   assert b = false, 'FALLA: is_admin() dio true para un usuario sin perfil';
 
   -- No puede leer tablas privadas
-  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations'] loop
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'] loop
     begin
       execute format('select count(*) from %I', t) into n;
       assert n = 0, format('FALLA: usuario sin perfil ve %s filas de %s', n, t);
@@ -262,7 +263,8 @@ begin
   foreach s in array array[
     $q$insert into venues (name, slug, address) values ('hack', 'hack', 'x')$q$,
     $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
-    $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$
+    $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$,
+    $q$insert into payments (athlete_id, amount, period_start) values (gen_random_uuid(), 40000, current_date)$q$
   ] loop
     begin
       execute s;
@@ -279,7 +281,7 @@ reset role;
 -- 6) Como manager
 -- =====================================================================
 set local role authenticated;
-set local "request.jwt.claims" = '{"sub": "36da1201-65fa-44c1-8eff-fd76a7a67f30", "role": "authenticated"}';
+set local "request.jwt.claims" = '{"sub": "d6ff7dcb-d411-47ce-a004-731631fe3fa6", "role": "authenticated"}';
 
 do $$
 declare
@@ -310,6 +312,13 @@ begin
 
   update venues set description = 'editado por manager' where slug = 'test-manager-sede';
 
+  -- Puede registrar y editar pagos (período anclado a la fecha de este
+  -- deportista de prueba, no a un mes calendario)
+  insert into payments (athlete_id, amount, payment_date, period_start)
+  values (v_athlete_id, 40000, current_date, current_date);
+
+  update payments set notes = 'editado por manager' where athlete_id = v_athlete_id;
+
   -- Puede eliminar la relación deportista-acudiente (excepción D9)
   delete from athlete_guardians where athlete_id = v_athlete_id and guardian_id = v_guardian_id;
 
@@ -333,7 +342,7 @@ begin
 
   -- No puede editar el role de otro perfil de staff
   begin
-    update admin_profiles set role = 'admin' where id = '36da1201-65fa-44c1-8eff-fd76a7a67f30';
+    update admin_profiles set role = 'admin' where id = 'd6ff7dcb-d411-47ce-a004-731631fe3fa6';
     get diagnostics n = row_count;
     assert n = 0, 'FALLA: manager pudo editar admin_profiles';
   exception when insufficient_privilege then null;
@@ -348,6 +357,8 @@ $$;
 reset role;
 
 -- Limpiar lo que creó el manager (como postgres; también se revertiría solo con el rollback final)
+-- El pago debe borrarse antes que el deportista por la llave foránea.
+delete from payments where athlete_id in (select id from athletes where last_name = 'ManagerDeportista');
 delete from athletes where last_name = 'ManagerDeportista';
 delete from guardians where last_name = 'ManagerAcudiente';
 delete from venues where slug = 'test-manager-sede';
@@ -378,7 +389,7 @@ begin
   -- Puede editar admin_profiles existentes (no probamos "crear" uno nuevo
   -- aquí porque requeriría otra cuenta real de Auth)
   update admin_profiles set full_name = 'TEST Manager (editado por admin)'
-    where id = '36da1201-65fa-44c1-8eff-fd76a7a67f30';
+    where id = 'd6ff7dcb-d411-47ce-a004-731631fe3fa6';
 
   -- Sigue pudiendo operar tablas de negocio, igual que el manager
   insert into programs (name, slug) values ('TEST admin programa', 'test-admin-programa');
