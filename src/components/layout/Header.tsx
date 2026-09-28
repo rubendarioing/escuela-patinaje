@@ -20,9 +20,11 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b bg-white">
       <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link to="/" className="text-lg font-bold text-sky-700">
+        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-sky-700">
+          <img src="/logo-real.jpg" alt="Prados Skate" className="h-9 w-auto" />
           Prados Skate
         </Link>
+
 
         <DesktopNavigation links={links} />
 
