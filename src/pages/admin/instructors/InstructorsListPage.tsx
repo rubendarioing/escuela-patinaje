@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getAllInstructorsForAdmin,
+  getInstructorProgramLinksForAdmin,
   setInstructorActive,
   type AdminInstructor,
 } from '@/services/instructors.service'
+import { getAllProgramsForAdmin } from '@/services/programs.service'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -18,6 +20,9 @@ import { cn } from '@/lib/utils'
 
 export function InstructorsListPage() {
   const [instructors, setInstructors] = useState<AdminInstructor[] | null>(null)
+  const [programNamesByInstructor, setProgramNamesByInstructor] = useState<Map<string, string[]>>(
+    new Map(),
+  )
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [search, setSearch] = useState('')
@@ -26,10 +31,23 @@ export function InstructorsListPage() {
 
   useEffect(() => {
     let cancelled = false
-    getAllInstructorsForAdmin()
-      .then((result) => {
+    Promise.all([
+      getAllInstructorsForAdmin(),
+      getAllProgramsForAdmin(),
+      getInstructorProgramLinksForAdmin(),
+    ])
+      .then(([instructorResult, programResult, linkResult]) => {
         if (cancelled) return
-        setInstructors(result)
+        const names = new Map<string, string[]>()
+        programResult.forEach((program) => {
+          linkResult
+            .filter((link) => link.programId === program.id)
+            .forEach((link) =>
+              names.set(link.instructorId, [...(names.get(link.instructorId) ?? []), program.name]),
+            )
+        })
+        setProgramNamesByInstructor(names)
+        setInstructors(instructorResult)
       })
       .catch(() => {
         if (cancelled) return
@@ -112,6 +130,10 @@ export function InstructorsListPage() {
           columns={[
             { header: 'Nombre', cell: (i) => `${i.firstName} ${i.lastName}` },
             { header: 'Especialidad', cell: (i) => i.specialty ?? '—' },
+            {
+              header: 'Programas',
+              cell: (i) => programNamesByInstructor.get(i.id)?.join(', ') || 'Sin programas',
+            },
             {
               header: 'Estado',
               cell: (i) => (

@@ -224,6 +224,39 @@ export type Database = {
         }
         Relationships: []
       }
+      instructor_programs: {
+        Row: {
+          created_at: string
+          instructor_id: string
+          program_id: string
+        }
+        Insert: {
+          created_at?: string
+          instructor_id: string
+          program_id: string
+        }
+        Update: {
+          created_at?: string
+          instructor_id?: string
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_programs_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_programs_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructors: {
         Row: {
           bio: string | null
@@ -613,6 +646,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       save_training_schedule: { Args: { payload: Json }; Returns: string }
+      set_instructor_programs: {
+        Args: { p_instructor_id: string; p_program_ids: string[] }
+        Returns: undefined
+      }
       set_venue_programs: {
         Args: { p_program_ids: string[]; p_venue_id: string }
         Returns: undefined

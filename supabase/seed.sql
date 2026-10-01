@@ -65,6 +65,15 @@ where not exists (
     and s.start_time = d.start_time::time
 );
 
+-- Programas de cada instructor (requerido antes de asignarlos a horarios)
+insert into instructor_programs (instructor_id, program_id)
+select i.id, p.id
+from instructors i
+join programs p
+  on p.slug = case i.last_name when 'Prueba Uno' then 'ninos-4-7' else 'mayores-7' end
+where i.last_name in ('Prueba Uno', 'Prueba Dos')
+on conflict do nothing;
+
 -- Instructor principal solo en la sede Prado (Colsubsidio queda sin instructor a propósito)
 insert into schedule_instructors (schedule_id, instructor_id, role)
 select s.id, i.id, 'lead'

@@ -4,9 +4,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   createInstructor,
+  getAssignedScheduleCountByProgram,
   getInstructorById,
+  getInstructorProgramLinksForAdmin,
+  setInstructorPrograms,
   updateInstructor,
 } from '@/services/instructors.service'
+import { getAllProgramsForAdmin } from '@/services/programs.service'
+import type { Program } from '@/types/program'
 import { instructorSchema, type InstructorFormValues } from '@/lib/validations/instructor.schema'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -35,6 +40,15 @@ export function InstructorFormPage() {
   const [isLoadingInstructor, setIsLoadingInstructor] = useState(isEditMode)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // Si al crear se guardó el instructor pero fallaron sus programas, reintentar actualiza en vez de duplicar
+  const [createdInstructorId, setCreatedInstructorId] = useState<string | null>(null)
+
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(true)
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>([])
+  const [scheduleCountByProgram, setScheduleCountByProgram] = useState<Map<string, number>>(
+    new Map(),
+  )
 
   const {
     register,
@@ -83,23 +97,77 @@ export function InstructorFormPage() {
     }
   }, [isEditMode, id, reset])
 
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      getAllProgramsForAdmin(),
+      isEditMode ? getInstructorProgramLinksForAdmin() : Promise.resolve([]),
+      isEditMode && id
+        ? getAssignedScheduleCountByProgram(id)
+        : Promise.resolve(new Map<string, number>()),
+    ])
+      .then(([programResult, linkResult, countResult]) => {
+        if (cancelled) return
+        setPrograms(programResult)
+        setSelectedProgramIds(
+          linkResult.filter((link) => link.instructorId === id).map((link) => link.programId),
+        )
+        setScheduleCountByProgram(countResult)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLoadError('No se pudieron cargar los programas.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPrograms(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isEditMode, id])
+
+  const toggleProgram = (programId: string) => {
+    setSelectedProgramIds((prev) =>
+      prev.includes(programId) ? prev.filter((x) => x !== programId) : [...prev, programId],
+    )
+  }
+
   const photoUrl = watch('photoUrl')
 
   const onSubmit = async (values: InstructorFormValues) => {
     setSubmitError(null)
+
+    const existingId = id ?? createdInstructorId
+    let instructorId: string
     try {
-      if (isEditMode && id) {
-        await updateInstructor(id, values)
+      if (existingId) {
+        await updateInstructor(existingId, values)
+        instructorId = existingId
       } else {
-        await createInstructor(values)
+        instructorId = (await createInstructor(values)).id
+        setCreatedInstructorId(instructorId)
       }
-      navigate('/admin/instructores')
     } catch {
       setSubmitError('No se pudo guardar el instructor. Revisa los datos e inténtalo de nuevo.')
+      return
+    }
+
+    try {
+      await setInstructorPrograms(instructorId, selectedProgramIds)
+      navigate('/admin/instructores')
+    } catch (error) {
+      const message = (error as { message?: string } | null)?.message
+      setSubmitError(
+        message === 'instructor_program_in_use'
+          ? 'No se puede quitar un programa en el que el instructor tiene horarios asignados. Quítalo primero de esos horarios.'
+          : 'El instructor se guardó, pero no se pudieron guardar sus programas. Inténtalo de nuevo.',
+      )
     }
   }
 
-  if (isLoadingInstructor) return <LoadingState label="Cargando instructor…" />
+  if (isLoadingInstructor || isLoadingPrograms) return <LoadingState label="Cargando instructor…" />
   if (loadError) return <ErrorState message={loadError} />
 
   return (
@@ -166,6 +234,58 @@ export function InstructorFormPage() {
           value={photoUrl || null}
           onChange={(url) => setValue('photoUrl', url ?? '')}
         />
+
+        <fieldset>
+          <legend className="text-sm font-medium text-slate-700">Programas</legend>
+          <p className="text-xs text-slate-500">
+            Solo se le podrán asignar horarios de los programas que marques.
+          </p>
+          {programs.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-600">
+              Todavía no hay programas.{' '}
+              <Link to="/admin/programas/nuevo" className="text-sky-700 hover:underline">
+                Crear un programa
+              </Link>
+            </p>
+          ) : (
+            <div className="mt-2 space-y-1">
+              {programs.map((program) => {
+                const scheduleCount = scheduleCountByProgram.get(program.id) ?? 0
+                const isLocked = scheduleCount > 0 && selectedProgramIds.includes(program.id)
+                return (
+                  <label
+                    key={program.id}
+                    className="flex items-center gap-2 text-sm text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProgramIds.includes(program.id)}
+                      disabled={isLocked}
+                      onChange={() => toggleProgram(program.id)}
+                    />
+                    {program.name}
+                    {!program.isActive && ' (inactivo)'}
+                    {scheduleCount > 0 && (
+                      <span className="text-xs text-slate-500">
+                        · asignado en {scheduleCount} {scheduleCount === 1 ? 'horario' : 'horarios'}
+                      </span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
+          {programs.length > 0 && selectedProgramIds.length === 0 && (
+            <p className="mt-2 text-xs text-amber-600">
+              Sin programas, este instructor no se podrá asignar a ningún horario.
+            </p>
+          )}
+          {[...scheduleCountByProgram.values()].some((n) => n > 0) && (
+            <p className="mt-2 text-xs text-slate-500">
+              Para quitar un programa bloqueado, primero quita al instructor de sus horarios.
+            </p>
+          )}
+        </fieldset>
 
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" {...register('isActive')} />

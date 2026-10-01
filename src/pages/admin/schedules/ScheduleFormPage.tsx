@@ -10,7 +10,12 @@ import {
 } from '@/services/schedules.service'
 import { getVenueProgramLinksForAdmin, getVenues } from '@/services/venues.service'
 import { getPrograms } from '@/services/programs.service'
-import { getAllInstructorsForAdmin, type AdminInstructor } from '@/services/instructors.service'
+import {
+  getAllInstructorsForAdmin,
+  getInstructorProgramLinksForAdmin,
+  type AdminInstructor,
+} from '@/services/instructors.service'
+import type { InstructorProgramLink } from '@/types/instructor'
 import { scheduleSchema, type ScheduleFormValues } from '@/lib/validations/schedule.schema'
 import { DAY_LABELS } from '@/lib/utils/schedule'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -51,6 +56,7 @@ export function ScheduleFormPage() {
   // aunque ya no esté activo en esa sede
   const [savedLink, setSavedLink] = useState<{ venueId: string; programId: string } | null>(null)
   const [instructors, setInstructors] = useState<AdminInstructor[]>([])
+  const [instructorProgramLinks, setInstructorProgramLinks] = useState<InstructorProgramLink[]>([])
   const [assignments, setAssignments] = useState<InstructorAssignment[]>([])
   const [assistantIds, setAssistantIds] = useState<string[]>([])
 
@@ -77,14 +83,24 @@ export function ScheduleFormPage() {
       getAllInstructorsForAdmin(),
       getInstructorAssignments(),
       getVenueProgramLinksForAdmin(),
+      getInstructorProgramLinksForAdmin(),
       loadPromise,
     ])
       .then(
-        ([venueResult, programResult, instructorResult, assignmentResult, linkResult, detail]) => {
+        ([
+          venueResult,
+          programResult,
+          instructorResult,
+          assignmentResult,
+          linkResult,
+          instructorLinkResult,
+          detail,
+        ]) => {
           if (cancelled) return
           setVenues(venueResult)
           setPrograms(programResult)
           setVenueProgramLinks(linkResult)
+          setInstructorProgramLinks(instructorLinkResult)
           setInstructors(instructorResult)
           setAssignments(assignmentResult)
 
@@ -141,10 +157,32 @@ export function ScheduleFormPage() {
     }
   }, [programId, venuePrograms, setValue])
 
+  const leadInstructorId = watch('leadInstructorId')
+
+  // Solo los instructores que pertenecen al programa elegido
+  const programInstructors = useMemo(() => {
+    if (!programId) return []
+    const memberIds = instructorProgramLinks
+      .filter((link) => link.programId === programId)
+      .map((link) => link.instructorId)
+    return instructors.filter((i) => memberIds.includes(i.id))
+  }, [programId, instructorProgramLinks, instructors])
+
+  // Al cambiar de programa, quitar los instructores que no pertenecen al nuevo
+  useEffect(() => {
+    const memberIds = programInstructors.map((i) => i.id)
+    if (leadInstructorId && !memberIds.includes(leadInstructorId)) {
+      setValue('leadInstructorId', '')
+    }
+    setAssistantIds((prev) => {
+      const next = prev.filter((x) => memberIds.includes(x))
+      return next.length === prev.length ? prev : next
+    })
+  }, [programInstructors, leadInstructorId, setValue])
+
   const dayOfWeek = watch('dayOfWeek')
   const startTime = watch('startTime')
   const endTime = watch('endTime')
-  const leadInstructorId = watch('leadInstructorId')
 
   const selectedInstructorIds = useMemo(
     () => [leadInstructorId, ...assistantIds].filter(Boolean),
@@ -203,11 +241,13 @@ export function ScheduleFormPage() {
       navigate('/admin/horarios')
     } catch (error) {
       // 23503: la sede no ofrece ese programa (llave foránea hacia venue_programs)
-      const code = (error as { code?: string } | null)?.code
+      const { code, message } = (error as { code?: string; message?: string } | null) ?? {}
       setSubmitError(
         code === '23503'
           ? 'Esa sede no ofrece el programa elegido. Agrégalo primero desde Editar sede.'
-          : 'No se pudo guardar el horario. Revisa los datos e inténtalo de nuevo.',
+          : message === 'instructor_not_in_program'
+            ? 'Algún instructor elegido no pertenece al programa. Revisa los programas del instructor.'
+            : 'No se pudo guardar el horario. Revisa los datos e inténtalo de nuevo.',
       )
     }
   }
@@ -289,8 +329,8 @@ export function ScheduleFormPage() {
         <SelectField
           label="Instructor principal"
           id="leadInstructorId"
-          placeholder="Sin instructor principal"
-          options={instructors.map((i) => ({
+          placeholder={programId ? 'Sin instructor principal' : 'Primero elige un programa'}
+          options={programInstructors.map((i) => ({
             value: i.id,
             label: `${i.firstName} ${i.lastName}${i.isActive ? '' : ' (inactivo)'}`,
           }))}
@@ -300,7 +340,7 @@ export function ScheduleFormPage() {
         <div>
           <p className="text-sm font-medium text-slate-700">Instructores auxiliares</p>
           <div className="mt-2 space-y-1">
-            {instructors
+            {programInstructors
               .filter((i) => i.id !== leadInstructorId)
               .map((i) => (
                 <label key={i.id} className="flex items-center gap-2 text-sm text-slate-700">
@@ -316,6 +356,15 @@ export function ScheduleFormPage() {
           </div>
         </div>
 
+        {programId && programInstructors.length === 0 && (
+          <p className="text-xs text-amber-600">
+            Ningún instructor pertenece a este programa.{' '}
+            <Link to="/admin/instructores" className="text-sky-700 hover:underline">
+              Asígnalo en Instructores
+            </Link>
+            .
+          </p>
+        )}
         {noInstructorWarning && (
           <p className="text-xs text-amber-600">
             Recomendado: asigna al menos un instructor a este horario.

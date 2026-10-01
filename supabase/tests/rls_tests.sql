@@ -33,14 +33,23 @@ from venue_programs vp
 join venues v on v.id = vp.venue_id
 where v.slug = 'test-sede-inactiva';
 
--- Instructor inactivo asociado a un horario visible (el público NO debe verlo)
-insert into schedule_instructors (schedule_id, instructor_id, role)
-select s.id, i.id, 'substitute'
-from training_schedules s, instructors i
+-- Instructor inactivo asociado a un horario visible (el público NO debe verlo).
+-- Primero debe pertenecer al programa de ese horario.
+select set_config('t.visible_schedule_id',
+  (select s.id from training_schedules s
+   where s.is_active and s.venue_id in (select id from venues where is_active)
+   limit 1)::text, true);
+
+insert into instructor_programs (instructor_id, program_id)
+select i.id, s.program_id
+from instructors i, training_schedules s
 where i.last_name = 'Inactivo'
-  and s.is_active
-  and s.venue_id in (select id from venues where is_active)
-limit 1;
+  and s.id = current_setting('t.visible_schedule_id')::uuid;
+
+insert into schedule_instructors (schedule_id, instructor_id, role)
+select current_setting('t.visible_schedule_id')::uuid, i.id, 'substitute'
+from instructors i
+where i.last_name = 'Inactivo';
 
 -- Un deportista, un acudiente y una inscripción reales (como postgres),
 -- para comprobar que el público no puede leerlos
@@ -86,6 +95,10 @@ select set_config('t.sched_instr',
    where s.is_active and i.is_active
      and exists (select 1 from venues v where v.id = s.venue_id and v.is_active)
      and exists (select 1 from programs p where p.id = s.program_id and p.is_active))::text, true);
+select set_config('t.instructor_programs',
+  (select count(*) from instructor_programs ip
+   where exists (select 1 from instructors i where i.id = ip.instructor_id and i.is_active)
+     and exists (select 1 from programs p where p.id = ip.program_id and p.is_active))::text, true);
 select set_config('t.doc_types',
   (select count(*) from document_types)::text, true);
 
@@ -118,6 +131,10 @@ begin
   select count(*) into n from training_schedules;
   assert n = current_setting('t.schedules')::int,
     format('FALLA: horarios visibles=%s, esperados=%s', n, current_setting('t.schedules'));
+
+  select count(*) into n from instructor_programs;
+  assert n = current_setting('t.instructor_programs')::int,
+    format('FALLA: instructor_programs visibles=%s, esperados=%s', n, current_setting('t.instructor_programs'));
 
   select count(*) into n from schedule_instructors;
   assert n = current_setting('t.sched_instr')::int,
@@ -164,6 +181,7 @@ begin
     $q$insert into instructors (first_name, last_name) values ('hack', 'hack')$q$,
     $q$insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity) values (gen_random_uuid(), gen_random_uuid(), 1, '10:00', '11:00', 5)$q$,
     $q$insert into schedule_instructors (schedule_id, instructor_id) values (gen_random_uuid(), gen_random_uuid())$q$,
+    $q$insert into instructor_programs (instructor_id, program_id) values (gen_random_uuid(), gen_random_uuid())$q$,
     $q$insert into admin_profiles (id, full_name) values (gen_random_uuid(), 'hack')$q$,
     $q$insert into document_types (code, name) values ('XX', 'hack')$q$,
     $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
@@ -182,7 +200,7 @@ begin
   -- E) Actualizaciones y borrados: deben fallar o no afectar ninguna fila
   foreach t in array array[
     'venues', 'programs', 'venue_programs', 'instructors', 'training_schedules',
-    'schedule_instructors', 'admin_profiles',
+    'schedule_instructors', 'instructor_programs', 'admin_profiles',
     'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'
   ] loop
     begin
@@ -221,7 +239,8 @@ begin
   foreach s in array array[
     'select is_staff()',
     'select is_admin()',
-    $q$select set_venue_programs(gen_random_uuid(), array[]::uuid[])$q$
+    $q$select set_venue_programs(gen_random_uuid(), array[]::uuid[])$q$,
+    $q$select set_instructor_programs(gen_random_uuid(), array[]::uuid[])$q$
   ] loop
     begin
       execute s;
@@ -314,6 +333,8 @@ declare
   b boolean;
   v_athlete_id uuid;
   v_guardian_id uuid;
+  v_schedule_id uuid;
+  v_instructor_id uuid;
 begin
   select is_staff() into b;
   assert b = true, 'FALLA: is_staff() dio false para un manager activo';
@@ -377,6 +398,63 @@ begin
   exception when foreign_key_violation then null;
   end;
 
+  -- Instructores y programas: un instructor solo va en horarios de sus programas
+  perform set_venue_programs(
+    (select id from venues where slug = 'test-manager-sede'),
+    array(select id from programs where slug = 'test-manager-programa')
+  );
+
+  insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
+  select v.id, p.id, 2, '10:00', '11:00', 5
+  from venues v, programs p
+  where v.slug = 'test-manager-sede' and p.slug = 'test-manager-programa'
+  returning id into v_schedule_id;
+
+  insert into instructors (first_name, last_name)
+  values ('TEST', 'ManagerInstructor')
+  returning id into v_instructor_id;
+
+  begin
+    insert into schedule_instructors (schedule_id, instructor_id, role)
+    values (v_schedule_id, v_instructor_id, 'lead');
+    raise exception 'FALLA: se asignó un instructor a un horario de un programa que no es suyo';
+  exception when raise_exception then
+    if sqlerrm <> 'instructor_not_in_program' then raise; end if;
+  end;
+
+  perform set_instructor_programs(
+    v_instructor_id,
+    array(select id from programs where slug = 'test-manager-programa')
+  );
+  insert into schedule_instructors (schedule_id, instructor_id, role)
+  values (v_schedule_id, v_instructor_id, 'lead');
+
+  -- No se le puede quitar el programa mientras tenga horarios de ese programa
+  begin
+    perform set_instructor_programs(v_instructor_id, array[]::uuid[]);
+    raise exception 'FALLA: se quitó un programa a un instructor con horarios en ese programa';
+  exception when raise_exception then
+    if sqlerrm <> 'instructor_program_in_use' then raise; end if;
+  end;
+
+  -- Cambiar el programa del horario a uno que el instructor no tiene: falla al validar
+  -- (la validación es diferida; set constraints ... immediate la fuerza aquí)
+  insert into programs (name, slug) values ('TEST manager programa 2', 'test-manager-programa-2');
+  perform set_venue_programs(
+    (select id from venues where slug = 'test-manager-sede'),
+    array(select id from programs where slug in ('test-manager-programa', 'test-manager-programa-2'))
+  );
+  begin
+    update training_schedules
+    set program_id = (select id from programs where slug = 'test-manager-programa-2')
+    where id = v_schedule_id;
+    set constraints training_schedules_program_instructors_check immediate;
+    raise exception 'FALLA: el horario cambió a un programa al que su instructor no pertenece';
+  exception when raise_exception then
+    if sqlerrm <> 'instructor_not_in_program' then raise; end if;
+  end;
+  set constraints training_schedules_program_instructors_check deferred;
+
   -- Puede registrar y editar pagos (período anclado a la fecha de este
   -- deportista de prueba, no a un mes calendario)
   insert into payments (athlete_id, amount, payment_date, period_start)
@@ -426,9 +504,12 @@ reset role;
 delete from payments where athlete_id in (select id from athletes where last_name = 'ManagerDeportista');
 delete from athletes where last_name = 'ManagerDeportista';
 delete from guardians where last_name = 'ManagerAcudiente';
+delete from training_schedules where venue_id in (select id from venues where slug = 'test-manager-sede');
+delete from instructor_programs where instructor_id in (select id from instructors where last_name = 'ManagerInstructor');
+delete from instructors where last_name = 'ManagerInstructor';
 delete from venue_programs where venue_id in (select id from venues where slug = 'test-manager-sede');
 delete from venues where slug = 'test-manager-sede';
-delete from programs where slug = 'test-manager-programa';
+delete from programs where slug in ('test-manager-programa', 'test-manager-programa-2');
 
 -- =====================================================================
 -- 7) Como admin
