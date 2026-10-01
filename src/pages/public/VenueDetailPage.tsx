@@ -89,6 +89,14 @@ export function VenueDetailPage() {
         }
       />
       <SectionTitle title={venue.name} subtitle={venue.city ?? undefined} level="h1" />
+      {venue.imageUrl && (
+        <img
+          src={venue.imageUrl}
+          alt={venue.name}
+          decoding="async"
+          className="aspect-video w-full rounded-lg object-cover"
+        />
+      )}
 
       <p className="text-slate-600">{venue.address}</p>
       {venue.description && <p className="text-slate-600">{venue.description}</p>}
