@@ -589,6 +589,7 @@ export type Database = {
           longitude: number | null
           name: string
           phone: string | null
+          schedules_per_athlete: number
           slug: string
           updated_at: string
           whatsapp: string | null
@@ -606,6 +607,7 @@ export type Database = {
           longitude?: number | null
           name: string
           phone?: string | null
+          schedules_per_athlete?: number
           slug: string
           updated_at?: string
           whatsapp?: string | null
@@ -623,6 +625,7 @@ export type Database = {
           longitude?: number | null
           name?: string
           phone?: string | null
+          schedules_per_athlete?: number
           slug?: string
           updated_at?: string
           whatsapp?: string | null
@@ -641,6 +644,16 @@ export type Database = {
           enrolled_count: number
           max_capacity: number
           schedule_id: string
+        }[]
+      }
+      get_venue_program_status: {
+        Args: never
+        Returns: {
+          active_schedules: number
+          is_publishable: boolean
+          program_id: string
+          required_schedules: number
+          venue_id: string
         }[]
       }
       is_admin: { Args: never; Returns: boolean }

@@ -32,6 +32,7 @@ const emptyValues: VenueFormValues = {
   whatsapp: '',
   googleMapsUrl: '',
   imageUrl: '',
+  schedulesPerAthlete: '3',
   isActive: true,
 }
 
@@ -88,6 +89,7 @@ export function VenueFormPage() {
           whatsapp: venue.whatsapp ?? '',
           googleMapsUrl: venue.googleMapsUrl ?? '',
           imageUrl: venue.imageUrl ?? '',
+          schedulesPerAthlete: String(venue.schedulesPerAthlete),
           isActive: venue.isActive,
         })
       })
@@ -168,6 +170,10 @@ export function VenueFormPage() {
   }, [name, isEditMode, dirtyFields.slug, setValue])
 
   const imageUrl = watch('imageUrl')
+  const schedulesPerAthleteInput = watch('schedulesPerAthlete')
+  const requiredSchedules = /^\d+$/.test(schedulesPerAthleteInput)
+    ? Number(schedulesPerAthleteInput)
+    : null
 
   const onSubmit = async (values: VenueFormValues) => {
     setSubmitError(null)
@@ -292,6 +298,27 @@ export function VenueFormPage() {
           />
         </FormField>
 
+        <FormField
+          label="Horarios por deportista"
+          htmlFor="schedulesPerAthlete"
+          required
+          error={errors.schedulesPerAthlete?.message}
+        >
+          <input
+            id="schedulesPerAthlete"
+            type="number"
+            min={1}
+            max={7}
+            className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm"
+            {...register('schedulesPerAthlete')}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Cantidad exacta de horarios que debe elegir un deportista al inscribirse en esta sede.
+            Un programa solo aparece en la inscripción si tiene al menos esta cantidad de horarios
+            activos.
+          </p>
+        </FormField>
+
         <ImageUpload
           label="Imagen"
           bucket="venues"
@@ -316,6 +343,9 @@ export function VenueFormPage() {
             <div className="mt-2 space-y-1">
               {programs.map((program) => {
                 const scheduleCount = activeSchedulesByProgram.get(program.id) ?? 0
+                const isSelected = selectedProgramIds.includes(program.id)
+                const isIncomplete =
+                  isSelected && requiredSchedules !== null && scheduleCount < requiredSchedules
                 return (
                   <label
                     key={program.id}
@@ -328,11 +358,23 @@ export function VenueFormPage() {
                     />
                     {program.name}
                     {!program.isActive && ' (inactivo)'}
-                    {scheduleCount > 0 && (
-                      <span className="text-xs text-slate-500">
-                        · {scheduleCount}{' '}
-                        {scheduleCount === 1 ? 'horario activo' : 'horarios activos'}
+                    {isSelected && requiredSchedules !== null ? (
+                      <span
+                        className={cn(
+                          'text-xs',
+                          isIncomplete ? 'text-amber-600' : 'text-slate-500',
+                        )}
+                      >
+                        · {scheduleCount} de {requiredSchedules} horarios activos
+                        {isIncomplete && ' (no aparece en la inscripción)'}
                       </span>
+                    ) : (
+                      scheduleCount > 0 && (
+                        <span className="text-xs text-slate-500">
+                          · {scheduleCount}{' '}
+                          {scheduleCount === 1 ? 'horario activo' : 'horarios activos'}
+                        </span>
+                      )
                     )}
                   </label>
                 )
