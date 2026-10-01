@@ -38,10 +38,22 @@ export type AthleteListItem = Athlete & {
 
 type RegistrationForListRow = {
   status: string
-  training_schedules: {
-    venues: { name: string } | null
-    programs: { name: string } | null
-  } | null
+  venues: { name: string } | null
+  registration_schedules: { training_schedules: { programs: { name: string } | null } | null }[]
+}
+
+// Nombres de programa distintos entre los horarios de una inscripción
+const programNamesOf = (
+  schedules: { training_schedules: { programs: { name: string } | null } | null }[],
+): string | null => {
+  const names = [
+    ...new Set(
+      schedules
+        .map((rs) => rs.training_schedules?.programs?.name)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ]
+  return names.length > 0 ? names.join(', ') : null
 }
 
 type AthleteListRow = Tables<'athletes'> & { registrations: RegistrationForListRow[] }
@@ -56,7 +68,7 @@ export const getAllAthletesForAdmin = async (): Promise<AthleteListItem[]> => {
   const { data, error } = await supabase
     .from('athletes')
     .select(
-      '*, registrations ( status, training_schedules ( venues ( name ), programs ( name ) ) )',
+      '*, registrations ( status, venues ( name ), registration_schedules ( training_schedules ( programs ( name ) ) ) )',
     )
     .order('last_name')
 
@@ -66,8 +78,8 @@ export const getAllAthletesForAdmin = async (): Promise<AthleteListItem[]> => {
     const current = pickCurrentRegistration(row.registrations)
     return {
       ...mapAthlete(row),
-      currentVenueName: current?.training_schedules?.venues?.name ?? null,
-      currentProgramName: current?.training_schedules?.programs?.name ?? null,
+      currentVenueName: current?.venues?.name ?? null,
+      currentProgramName: current ? programNamesOf(current.registration_schedules) : null,
     }
   })
 }
@@ -141,10 +153,12 @@ export type AthleteRegistrationHistoryItem = {
   source: string
   registrationDate: string
   venueName: string | null
-  programName: string | null
-  dayOfWeek: number
-  startTime: string
-  endTime: string
+  schedules: {
+    programName: string | null
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+  }[]
 }
 
 export type AthleteDetail = {
@@ -174,13 +188,15 @@ type RegistrationHistoryRow = {
   status: string
   source: string
   registration_date: string
-  training_schedules: {
-    day_of_week: number
-    start_time: string
-    end_time: string
-    venues: { name: string } | null
-    programs: { name: string } | null
-  } | null
+  venues: { name: string } | null
+  registration_schedules: {
+    training_schedules: {
+      day_of_week: number
+      start_time: string
+      end_time: string
+      programs: { name: string } | null
+    } | null
+  }[]
 }
 
 export const getAthleteDetail = async (id: string): Promise<AthleteDetail | null> => {
@@ -203,7 +219,7 @@ export const getAthleteDetail = async (id: string): Promise<AthleteDetail | null
     supabase
       .from('registrations')
       .select(
-        'id, status, source, registration_date, training_schedules ( day_of_week, start_time, end_time, venues ( name ), programs ( name ) )',
+        'id, status, source, registration_date, venues ( name ), registration_schedules ( training_schedules ( day_of_week, start_time, end_time, programs ( name ) ) )',
       )
       .eq('athlete_id', id)
       .order('created_at', { ascending: false }),
@@ -234,11 +250,17 @@ export const getAthleteDetail = async (id: string): Promise<AthleteDetail | null
       status: r.status,
       source: r.source,
       registrationDate: r.registration_date,
-      venueName: r.training_schedules?.venues?.name ?? null,
-      programName: r.training_schedules?.programs?.name ?? null,
-      dayOfWeek: r.training_schedules?.day_of_week ?? 0,
-      startTime: r.training_schedules?.start_time ?? '',
-      endTime: r.training_schedules?.end_time ?? '',
+      venueName: r.venues?.name ?? null,
+      schedules: r.registration_schedules
+        .map((rs) => rs.training_schedules)
+        .filter((sc) => sc !== null)
+        .map((sc) => ({
+          programName: sc!.programs?.name ?? null,
+          dayOfWeek: sc!.day_of_week,
+          startTime: sc!.start_time,
+          endTime: sc!.end_time,
+        }))
+        .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)),
     })),
   }
 }

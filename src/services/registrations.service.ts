@@ -8,18 +8,25 @@ export const REGISTRATION_STATUS_OPTIONS = [
   { value: 'completed', label: 'Finalizada' },
 ]
 
+// Un horario dentro de una inscripción
+export type RegistrationScheduleItem = {
+  scheduleId: string
+  programId: string
+  programName: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+}
+
+// Una inscripción: un deportista en una sede con sus N horarios
 export type RegistrationListItem = {
   id: string
   athleteId: string
   athleteName: string
-  scheduleId: string
-  programId: string
-  programName: string
   venueId: string
   venueName: string
-  dayOfWeek: number
-  startTime: string
-  endTime: string
+  requiredSchedules: number
+  schedules: RegistrationScheduleItem[]
   registrationDate: string
   status: string
   source: string
@@ -30,36 +37,47 @@ type RegistrationRow = {
   registration_date: string
   status: string
   source: string
+  required_schedules: number
   athletes: { id: string; first_name: string; last_name: string } | null
-  training_schedules: {
-    id: string
-    day_of_week: number
-    start_time: string
-    end_time: string
-    venues: { id: string; name: string } | null
-    programs: { id: string; name: string } | null
-  } | null
+  venues: { id: string; name: string } | null
+  registration_schedules: {
+    training_schedules: {
+      id: string
+      day_of_week: number
+      start_time: string
+      end_time: string
+      programs: { id: string; name: string } | null
+    } | null
+  }[]
 }
 
 const REGISTRATION_SELECT = `
-  id, registration_date, status, source,
+  id, registration_date, status, source, required_schedules,
   athletes ( id, first_name, last_name ),
-  training_schedules ( id, day_of_week, start_time, end_time,
-    venues ( id, name ), programs ( id, name ) )
+  venues ( id, name ),
+  registration_schedules ( training_schedules ( id, day_of_week, start_time, end_time,
+    programs ( id, name ) ) )
 `
 
 const mapRegistration = (row: RegistrationRow): RegistrationListItem => ({
   id: row.id,
   athleteId: row.athletes?.id ?? '',
   athleteName: row.athletes ? `${row.athletes.first_name} ${row.athletes.last_name}` : '—',
-  scheduleId: row.training_schedules?.id ?? '',
-  programId: row.training_schedules?.programs?.id ?? '',
-  programName: row.training_schedules?.programs?.name ?? '—',
-  venueId: row.training_schedules?.venues?.id ?? '',
-  venueName: row.training_schedules?.venues?.name ?? '—',
-  dayOfWeek: row.training_schedules?.day_of_week ?? 0,
-  startTime: row.training_schedules?.start_time ?? '',
-  endTime: row.training_schedules?.end_time ?? '',
+  venueId: row.venues?.id ?? '',
+  venueName: row.venues?.name ?? '—',
+  requiredSchedules: row.required_schedules,
+  schedules: row.registration_schedules
+    .map((rs) => rs.training_schedules)
+    .filter((s) => s !== null)
+    .map((s) => ({
+      scheduleId: s!.id,
+      programId: s!.programs?.id ?? '',
+      programName: s!.programs?.name ?? '—',
+      dayOfWeek: s!.day_of_week,
+      startTime: s!.start_time,
+      endTime: s!.end_time,
+    }))
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)),
   registrationDate: row.registration_date,
   status: row.status,
   source: row.source,

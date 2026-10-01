@@ -3,8 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { getSchedules, getScheduleAvailability } from '@/services/schedules.service'
+import { getVenues } from '@/services/venues.service'
 import { submitPreregistration } from '@/services/preregistration.service'
 import type { Schedule } from '@/types/schedule'
+import type { Venue } from '@/types/venue'
 import {
   preregistrationSchema,
   type PreregistrationFormValues,
@@ -23,18 +25,41 @@ import { POLICY_VERSION } from '@/lib/policyVersion'
 
 const ALL = 'all'
 
+const overlaps = (a: Schedule, b: Schedule) =>
+  a.dayOfWeek === b.dayOfWeek && a.startTime < b.endTime && b.startTime < a.endTime
+
+const scheduleLabel = (s: Schedule) =>
+  `${s.program?.name ?? ''} · ${DAY_LABELS[s.dayOfWeek]} ${formatScheduleRange(s.startTime, s.endTime)}`
+
+const ageOn = (birthDate: string): number | null => {
+  const birth = new Date(birthDate)
+  if (Number.isNaN(birth.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const hasHadBirthdayThisYear =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
+  if (!hasHadBirthdayThisYear) age -= 1
+  return age
+}
+
 export function InscriptionPage() {
   const [searchParams] = useSearchParams()
   const preselectedScheduleId = searchParams.get('horario')
   const preselectedProgramSlug = searchParams.get('programa')
 
   const [schedules, setSchedules] = useState<Schedule[] | null>(null)
+  const [allVenues, setAllVenues] = useState<Venue[]>([])
   const [availabilityMap, setAvailabilityMap] = useState<Map<string, number>>(new Map())
   const [loadError, setLoadError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
-  const [venueId, setVenueId] = useState(ALL)
+  const [venueId, setVenueId] = useState('')
   const [programId, setProgramId] = useState(ALL)
+  // Programa sugerido por la URL (?programa=slug): se aplica al elegir una sede que lo ofrezca
+  const [preferredProgramId, setPreferredProgramId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [selectionError, setSelectionError] = useState<string | null>(null)
 
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -43,7 +68,6 @@ export function InscriptionPage() {
     register,
     handleSubmit,
     watch,
-    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<PreregistrationFormValues>({
@@ -57,7 +81,6 @@ export function InscriptionPage() {
       guardianPhone: '',
       guardianWhatsapp: '',
       guardianEmail: '',
-      scheduleId: '',
       notes: '',
       consentAccepted: false,
       website: '',
@@ -67,10 +90,12 @@ export function InscriptionPage() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([getSchedules(), getScheduleAvailability()])
-      .then(([scheduleResult, availabilityResult]) => {
+    // getSchedules ya trae solo horarios de programas publicables en su sede
+    Promise.all([getSchedules(), getVenues(), getScheduleAvailability()])
+      .then(([scheduleResult, venueResult, availabilityResult]) => {
         if (cancelled) return
         setSchedules(scheduleResult)
+        setAllVenues(venueResult)
         setAvailabilityMap(new Map(availabilityResult.map((a) => [a.scheduleId, a.availableSpots])))
       })
       .catch(() => {
@@ -92,65 +117,101 @@ export function InscriptionPage() {
       if (match) {
         setVenueId(match.venueId)
         setProgramId(match.programId)
-        setValue('scheduleId', match.id)
+        if (availabilityMap.get(match.id) !== 0) setSelectedIds([match.id])
         return
       }
     }
 
     if (preselectedProgramSlug) {
       const match = schedules.find((s) => s.program?.slug === preselectedProgramSlug)
-      if (match) setProgramId(match.programId)
+      if (match) setPreferredProgramId(match.programId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schedules])
 
+  // Solo sedes con al menos un programa publicable (es decir, con horarios visibles)
   const venues = useMemo(() => {
     if (!schedules) return []
+    const withSchedules = new Set(schedules.map((s) => s.venueId))
+    return allVenues.filter((v) => withSchedules.has(v.id))
+  }, [schedules, allVenues])
+
+  const selectedVenue = venues.find((v) => v.id === venueId) ?? null
+  const requiredCount = selectedVenue?.schedulesPerAthlete ?? 0
+
+  const venueSchedules = useMemo(
+    () => (schedules ?? []).filter((s) => s.venueId === venueId),
+    [schedules, venueId],
+  )
+
+  const venuePrograms = useMemo(() => {
     const map = new Map<string, string>()
-    schedules.forEach((s) => s.venue && map.set(s.venue.id, s.venue.name))
+    venueSchedules.forEach((s) => s.program && map.set(s.program.id, s.program.name))
     return Array.from(map, ([id, name]) => ({ id, name }))
-  }, [schedules])
+  }, [venueSchedules])
 
-  const programs = useMemo(() => {
-    if (!schedules) return []
-    const map = new Map<string, string>()
-    schedules.forEach((s) => s.program && map.set(s.program.id, s.program.name))
-    return Array.from(map, ([id, name]) => ({ id, name }))
-  }, [schedules])
+  const visibleSchedules =
+    programId === ALL ? venueSchedules : venueSchedules.filter((s) => s.programId === programId)
 
-  const filteredSchedules = useMemo(() => {
-    if (!schedules) return []
-    return schedules.filter((s) => {
-      if (venueId !== ALL && s.venueId !== venueId) return false
-      if (programId !== ALL && s.programId !== programId) return false
-      return true
-    })
-  }, [schedules, venueId, programId])
+  const selectedSchedules = useMemo(
+    () =>
+      selectedIds
+        .map((id) => venueSchedules.find((s) => s.id === id))
+        .filter((s): s is Schedule => s !== undefined),
+    [selectedIds, venueSchedules],
+  )
 
-  const scheduleId = watch('scheduleId')
+  // Por qué no se puede marcar un horario (null si se puede)
+  const disabledReason = (schedule: Schedule): string | null => {
+    if (selectedIds.includes(schedule.id)) return null
+    if (availabilityMap.get(schedule.id) === 0) return 'sin cupo'
+    if (selectedIds.length >= requiredCount) return null // se deshabilita sin texto: ya completó
+    const clash = selectedSchedules.find((sel) => overlaps(sel, schedule))
+    if (clash) return `se cruza con ${clash.program?.name ?? 'otro horario'}`
+    return null
+  }
+
+  const handleVenueChange = (nextVenueId: string) => {
+    setVenueId(nextVenueId)
+    setSelectedIds([])
+    setSelectionError(null)
+    const offersPreferred = (schedules ?? []).some(
+      (s) => s.venueId === nextVenueId && s.programId === preferredProgramId,
+    )
+    setProgramId(offersPreferred && preferredProgramId ? preferredProgramId : ALL)
+  }
+
+  const toggleSchedule = (scheduleId: string) => {
+    setSelectionError(null)
+    setSelectedIds((prev) =>
+      prev.includes(scheduleId)
+        ? prev.filter((id) => id !== scheduleId)
+        : prev.length < requiredCount
+          ? [...prev, scheduleId]
+          : prev,
+    )
+  }
+
   const athleteBirthDate = watch('athleteBirthDate')
-  const selectedSchedule = schedules?.find((s) => s.id === scheduleId) ?? null
 
   const ageWarning = useMemo(() => {
-    if (!selectedSchedule || !athleteBirthDate) return null
-    const birth = new Date(athleteBirthDate)
-    if (Number.isNaN(birth.getTime())) return null
-    const today = new Date()
-    let age = today.getFullYear() - birth.getFullYear()
-    const hasHadBirthdayThisYear =
-      today.getMonth() > birth.getMonth() ||
-      (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
-    if (!hasHadBirthdayThisYear) age -= 1
+    if (selectedSchedules.length === 0 || !athleteBirthDate) return null
+    const age = ageOn(athleteBirthDate)
+    if (age === null) return null
 
-    const { minAge, maxAge } = selectedSchedule.program ?? {}
-    if (minAge != null && age < minAge) {
-      return `La edad del deportista (${age} años) está por debajo del rango recomendado de este programa (desde ${minAge} años). Puedes continuar; lo revisaremos contigo.`
-    }
-    if (maxAge != null && age > maxAge) {
-      return `La edad del deportista (${age} años) está por encima del rango recomendado de este programa (hasta ${maxAge} años). Puedes continuar; lo revisaremos contigo.`
-    }
-    return null
-  }, [selectedSchedule, athleteBirthDate])
+    const outOfRange = [
+      ...new Set(
+        selectedSchedules
+          .filter((s) => {
+            const { minAge, maxAge } = s.program ?? {}
+            return (minAge != null && age < minAge) || (maxAge != null && age > maxAge)
+          })
+          .map((s) => s.program?.name ?? ''),
+      ),
+    ]
+    if (outOfRange.length === 0) return null
+    return `La edad del deportista (${age} años) está fuera del rango recomendado de: ${outOfRange.join(', ')}. Puedes continuar; lo revisaremos contigo.`
+  }, [selectedSchedules, athleteBirthDate])
 
   const handleRetryLoad = () => {
     setLoadError(null)
@@ -160,6 +221,16 @@ export function InscriptionPage() {
 
   const onSubmit = async (values: PreregistrationFormValues) => {
     setSubmitError(null)
+
+    if (!selectedVenue || selectedIds.length !== requiredCount) {
+      setSelectionError(
+        selectedVenue
+          ? `Elige exactamente ${requiredCount} ${requiredCount === 1 ? 'horario' : 'horarios'}.`
+          : 'Elige una sede y tus horarios.',
+      )
+      return
+    }
+
     setSubmitStatus('submitting')
 
     try {
@@ -172,7 +243,7 @@ export function InscriptionPage() {
         guardian_phone: values.guardianPhone,
         guardian_whatsapp: values.guardianWhatsapp,
         guardian_email: values.guardianEmail,
-        schedule_id: values.scheduleId,
+        schedule_ids: selectedIds,
         notes: values.notes,
         consent_accepted: values.consentAccepted,
         consent_version: POLICY_VERSION,
@@ -182,6 +253,7 @@ export function InscriptionPage() {
       if (result.ok) {
         setSubmitStatus('success')
         reset()
+        setSelectedIds([])
       } else {
         setSubmitStatus('idle')
         setSubmitError(getPreregistrationErrorMessage(result.code))
@@ -223,7 +295,7 @@ export function InscriptionPage() {
     <PageContainer>
       <Seo
         title="Inscripción"
-        description="Inscribe a tu hijo o hija en la escuela de patinaje. Elige sede, programa y horario."
+        description="Inscribe a tu hijo o hija en la escuela de patinaje. Elige sede, programa y horarios."
       />
       <SectionTitle
         title="Inscripción"
@@ -285,7 +357,6 @@ export function InscriptionPage() {
             {errors.athleteBirthDate && (
               <p className="mt-1 text-xs text-red-600">{errors.athleteBirthDate.message}</p>
             )}
-            {ageWarning && <p className="mt-1 text-xs text-amber-600">{ageWarning}</p>}
           </div>
         </fieldset>
 
@@ -361,22 +432,20 @@ export function InscriptionPage() {
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-lg font-semibold text-slate-900">Horario</legend>
+          <legend className="text-lg font-semibold text-slate-900">Horarios</legend>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="venueFilter" className="text-sm font-medium text-slate-700">
+              <label htmlFor="venueSelect" className="text-sm font-medium text-slate-700">
                 Sede
               </label>
               <select
-                id="venueFilter"
+                id="venueSelect"
                 value={venueId}
-                onChange={(e) => {
-                  setVenueId(e.target.value)
-                  setValue('scheduleId', '')
-                }}
+                onChange={(e) => handleVenueChange(e.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               >
-                <option value={ALL}>Todas las sedes</option>
+                <option value="">Elige una sede</option>
                 {venues.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
@@ -384,55 +453,111 @@ export function InscriptionPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label htmlFor="programFilter" className="text-sm font-medium text-slate-700">
-                Programa
-              </label>
-              <select
-                id="programFilter"
-                value={programId}
-                onChange={(e) => {
-                  setProgramId(e.target.value)
-                  setValue('scheduleId', '')
-                }}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value={ALL}>Todos los programas</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="scheduleId" className="text-sm font-medium text-slate-700">
-              Horario
-            </label>
-            <select
-              id="scheduleId"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              {...register('scheduleId')}
-            >
-              <option value="">Elige un horario</option>
-              {filteredSchedules.map((s) => {
-                const spots = availabilityMap.get(s.id)
-                const isFull = spots === 0
-                return (
-                  <option key={s.id} value={s.id} disabled={isFull}>
-                    {s.venue?.name} · {s.program?.name} · {DAY_LABELS[s.dayOfWeek]}{' '}
-                    {formatScheduleRange(s.startTime, s.endTime)}
-                    {isFull ? ' (sin cupo)' : ''}
-                  </option>
-                )
-              })}
-            </select>
-            {errors.scheduleId && (
-              <p className="mt-1 text-xs text-red-600">{errors.scheduleId.message}</p>
+            {selectedVenue && (
+              <div>
+                <label htmlFor="programSelect" className="text-sm font-medium text-slate-700">
+                  Programa
+                </label>
+                <select
+                  id="programSelect"
+                  value={programId}
+                  onChange={(e) => setProgramId(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value={ALL}>Todos los programas</option>
+                  {venuePrograms.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
+
+          {venues.length === 0 && (
+            <p className="text-sm text-slate-600">
+              Por ahora no hay horarios abiertos para inscripción. Escríbenos por WhatsApp y te
+              avisamos.
+            </p>
+          )}
+
+          {selectedVenue && (
+            <>
+              <p className="text-sm text-slate-600">
+                En esta sede debes elegir exactamente{' '}
+                <strong>
+                  {requiredCount} {requiredCount === 1 ? 'horario' : 'horarios'}
+                </strong>
+                . Pueden ser de distintos programas, pero no pueden cruzarse entre sí.
+              </p>
+
+              <ul className="space-y-1">
+                {visibleSchedules.map((schedule) => {
+                  const isSelected = selectedIds.includes(schedule.id)
+                  const reason = disabledReason(schedule)
+                  const isDisabled =
+                    !isSelected && (reason !== null || selectedIds.length >= requiredCount)
+                  return (
+                    <li key={schedule.id}>
+                      <label
+                        className={cn(
+                          'flex items-center gap-2 rounded-md border px-3 py-2 text-sm',
+                          isSelected
+                            ? 'border-sky-600 bg-sky-50 text-slate-900'
+                            : 'border-slate-200 text-slate-700',
+                          isDisabled && 'opacity-50',
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => toggleSchedule(schedule.id)}
+                        />
+                        <span>
+                          {scheduleLabel(schedule)}
+                          {reason && <span className="text-xs text-slate-500"> · {reason}</span>}
+                        </span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              <div
+                className={cn(
+                  'rounded-md px-3 py-2 text-sm',
+                  selectedIds.length === requiredCount
+                    ? 'bg-emerald-50 text-emerald-800'
+                    : 'bg-slate-50 text-slate-700',
+                )}
+              >
+                <p className="font-medium">
+                  Elegidos: {selectedIds.length} de {requiredCount}
+                </p>
+                {selectedSchedules.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {selectedSchedules.map((s) => (
+                      <li key={s.id} className="flex items-center justify-between gap-2">
+                        <span>{scheduleLabel(s)}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleSchedule(s.id)}
+                          className="text-xs text-sky-700 hover:underline"
+                        >
+                          Quitar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+
+          {selectionError && <p className="text-xs text-red-600">{selectionError}</p>}
+          {ageWarning && <p className="text-xs text-amber-600">{ageWarning}</p>}
         </fieldset>
 
         <div>
