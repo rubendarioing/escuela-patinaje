@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Instructor } from '@/types/instructor'
+import type { Instructor, InstructorProgramLink } from '@/types/instructor'
 
 // Fila pública: solo las columnas que el público tiene permitido leer (paso 14).
 // No usa Tables<'instructors'> porque ese tipo incluye email y phone.
@@ -126,4 +126,44 @@ export const updateInstructor = async (
 export const setInstructorActive = async (id: string, isActive: boolean): Promise<void> => {
   const { error } = await supabase.from('instructors').update({ is_active: isActive }).eq('id', id)
   if (error) throw error
+}
+
+// Todas las relaciones instructor-programa: solo para el panel admin
+export const getInstructorProgramLinksForAdmin = async (): Promise<InstructorProgramLink[]> => {
+  const { data, error } = await supabase
+    .from('instructor_programs')
+    .select('instructor_id, program_id')
+  if (error) throw error
+  return data.map((row) => ({ instructorId: row.instructor_id, programId: row.program_id }))
+}
+
+// Deja al instructor exactamente en los programas indicados
+export const setInstructorPrograms = async (
+  instructorId: string,
+  programIds: string[],
+): Promise<void> => {
+  const { error } = await supabase.rpc('set_instructor_programs', {
+    p_instructor_id: instructorId,
+    p_program_ids: programIds,
+  })
+  if (error) throw error
+}
+
+// Cuántos horarios (activos o no) tiene asignados el instructor en cada programa.
+// Un programa con horarios asignados no se le puede quitar.
+export const getAssignedScheduleCountByProgram = async (
+  instructorId: string,
+): Promise<Map<string, number>> => {
+  const { data, error } = await supabase
+    .from('schedule_instructors')
+    .select('training_schedules ( program_id )')
+    .eq('instructor_id', instructorId)
+  if (error) throw error
+
+  const counts = new Map<string, number>()
+  data.forEach((row) => {
+    const programId = row.training_schedules?.program_id
+    if (programId) counts.set(programId, (counts.get(programId) ?? 0) + 1)
+  })
+  return counts
 }

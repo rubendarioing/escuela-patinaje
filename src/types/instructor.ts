@@ -7,3 +7,9 @@ export type Instructor = {
   photoUrl: string | null
   isActive: boolean
 }
+
+// Relación instructor-programa: a qué programas pertenece cada instructor
+export type InstructorProgramLink = {
+  instructorId: string
+  programId: string
+}
