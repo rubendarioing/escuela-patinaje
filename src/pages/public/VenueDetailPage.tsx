@@ -114,6 +114,13 @@ export function VenueDetailPage() {
 
       <section>
         <h2 className="text-xl font-semibold text-slate-900">Programas en esta sede</h2>
+        {programs.length > 0 && (
+          <p className="mt-1 text-sm text-slate-600">
+            Al inscribirte eliges {venue.schedulesPerAthlete}{' '}
+            {venue.schedulesPerAthlete === 1 ? 'horario' : 'horarios'} en esta sede; pueden ser de
+            distintos programas.
+          </p>
+        )}
         {programs.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">
             Próximamente publicaremos los programas de esta sede.

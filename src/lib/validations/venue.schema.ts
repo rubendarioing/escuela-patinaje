@@ -20,6 +20,13 @@ export const venueSchema = z.object({
   whatsapp: z.string().trim().max(30),
   googleMapsUrl: z.string().trim().max(500),
   imageUrl: z.string().trim().max(500),
+  schedulesPerAthlete: z
+    .string()
+    .trim()
+    .refine(
+      (v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 7,
+      'Debe ser un número entre 1 y 7',
+    ),
   isActive: z.boolean(),
 })
 

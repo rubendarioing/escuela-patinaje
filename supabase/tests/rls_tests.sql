@@ -99,6 +99,8 @@ select set_config('t.instructor_programs',
   (select count(*) from instructor_programs ip
    where exists (select 1 from instructors i where i.id = ip.instructor_id and i.is_active)
      and exists (select 1 from programs p where p.id = ip.program_id and p.is_active))::text, true);
+select set_config('t.inactive_venue_id',
+  (select id from venues where slug = 'test-sede-inactiva')::text, true);
 select set_config('t.doc_types',
   (select count(*) from document_types)::text, true);
 
@@ -256,6 +258,18 @@ begin
   exception when insufficient_privilege then
     raise exception 'FALLA: anon no pudo ejecutar get_schedule_availability()';
   end;
+
+  -- H) get_venue_program_status() es pública, pero solo ve sedes activas
+  begin
+    perform * from get_venue_program_status() limit 1;
+  exception when insufficient_privilege then
+    raise exception 'FALLA: anon no pudo ejecutar get_venue_program_status()';
+  end;
+
+  select count(*) into n
+  from get_venue_program_status() st
+  where st.venue_id = current_setting('t.inactive_venue_id')::uuid;
+  assert n = 0, 'FALLA: anon ve el estado de programas de una sede inactiva';
 end;
 $$;
 
@@ -454,6 +468,33 @@ begin
     if sqlerrm <> 'instructor_not_in_program' then raise; end if;
   end;
   set constraints training_schedules_program_instructors_check deferred;
+
+  -- Horarios por deportista: rango 1 a 7
+  foreach n in array array[0, 8] loop
+    begin
+      update venues set schedules_per_athlete = n where slug = 'test-manager-sede';
+      raise exception 'FALLA: se aceptó schedules_per_athlete = %', n;
+    exception when check_violation then null;
+    end;
+  end loop;
+
+  -- Publicable solo con al menos schedules_per_athlete horarios activos
+  -- (la sede de prueba tiene 1 horario activo de test-manager-programa)
+  update venues set schedules_per_athlete = 1 where slug = 'test-manager-sede';
+  select st.is_publishable into b
+  from get_venue_program_status() st
+  join venues v on v.id = st.venue_id
+  join programs p on p.id = st.program_id
+  where v.slug = 'test-manager-sede' and p.slug = 'test-manager-programa';
+  assert b = true, 'FALLA: programa con 1 de 1 horarios no quedó publicable';
+
+  update venues set schedules_per_athlete = 2 where slug = 'test-manager-sede';
+  select st.is_publishable into b
+  from get_venue_program_status() st
+  join venues v on v.id = st.venue_id
+  join programs p on p.id = st.program_id
+  where v.slug = 'test-manager-sede' and p.slug = 'test-manager-programa';
+  assert b = false, 'FALLA: programa con 1 de 2 horarios quedó publicable';
 
   -- Puede registrar y editar pagos (período anclado a la fecha de este
   -- deportista de prueba, no a un mes calendario)

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
-import type { Venue, VenueProgramLink } from '@/types/venue'
+import type { Venue, VenueProgramLink, VenueProgramStatus } from '@/types/venue'
 import type { Program } from '@/types/program'
 import type { VenueFormValues } from '@/lib/validations/venue.schema'
 import { getSchedules } from '@/services/schedules.service'
@@ -22,6 +22,7 @@ export const mapVenue = (row: VenueRow): Venue => ({
   latitude: row.latitude,
   longitude: row.longitude,
   imageUrl: row.image_url,
+  schedulesPerAthlete: row.schedules_per_athlete,
   isActive: row.is_active,
 })
 
@@ -56,18 +57,21 @@ export const getSchedulesByVenueId = async (venueId: string) => {
   return schedules.filter((s) => s.venueId === venueId)
 }
 
-// Programas activos que ofrece una sede, en el orden del catálogo
+// Programas publicables de una sede (activos y con los horarios que exige la sede),
+// en el orden del catálogo
 export const getProgramsByVenueId = async (venueId: string): Promise<Program[]> => {
-  const { data, error } = await supabase
-    .from('venue_programs')
-    .select('programs ( * )')
-    .eq('venue_id', venueId)
-    .eq('is_active', true)
+  const [{ data, error }, statusResult] = await Promise.all([
+    supabase.from('venue_programs').select('programs ( * )').eq('venue_id', venueId),
+    getVenueProgramStatus(),
+  ])
 
   if (error) throw error
+  const publishableIds = statusResult
+    .filter((st) => st.venueId === venueId && st.isPublishable)
+    .map((st) => st.programId)
   return data
     .map((row) => row.programs)
-    .filter((program) => program !== null && program.is_active)
+    .filter((program) => program !== null && publishableIds.includes(program.id))
     .map((program) => mapProgram(program!))
     .sort((a, b) => a.sortOrder - b.sortOrder)
 }
@@ -96,6 +100,7 @@ export const createVenue = async (input: VenueFormValues): Promise<Venue> => {
     whatsapp: input.whatsapp || null,
     google_maps_url: input.googleMapsUrl || null,
     image_url: input.imageUrl || null,
+    schedules_per_athlete: Number(input.schedulesPerAthlete),
     is_active: input.isActive,
   }
 
@@ -115,6 +120,7 @@ export const updateVenue = async (id: string, input: VenueFormValues): Promise<V
     whatsapp: input.whatsapp || null,
     google_maps_url: input.googleMapsUrl || null,
     image_url: input.imageUrl || null,
+    schedules_per_athlete: Number(input.schedulesPerAthlete),
     is_active: input.isActive,
   }
 
@@ -153,4 +159,18 @@ export const setVenuePrograms = async (venueId: string, programIds: string[]): P
     p_program_ids: programIds,
   })
   if (error) throw error
+}
+
+// Estado de cada programa en cada sede (horarios activos y si es publicable).
+// El público solo recibe lo público; el staff recibe todo.
+export const getVenueProgramStatus = async (): Promise<VenueProgramStatus[]> => {
+  const { data, error } = await supabase.rpc('get_venue_program_status')
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    venueId: row.venue_id,
+    programId: row.program_id,
+    requiredSchedules: row.required_schedules,
+    activeSchedules: row.active_schedules,
+    isPublishable: row.is_publishable,
+  }))
 }

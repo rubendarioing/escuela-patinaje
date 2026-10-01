@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   getAllVenuesForAdmin,
   getVenueProgramLinksForAdmin,
+  getVenueProgramStatus,
   setVenueActive,
 } from '@/services/venues.service'
 import { getAllProgramsForAdmin } from '@/services/programs.service'
@@ -18,9 +19,18 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+// Programa de una sede con sus horarios activos frente a los requeridos
+type VenueProgramSummary = {
+  name: string
+  activeSchedules: number
+  requiredSchedules: number
+}
+
 export function VenuesListPage() {
   const [venues, setVenues] = useState<Venue[] | null>(null)
-  const [programNamesByVenue, setProgramNamesByVenue] = useState<Map<string, string[]>>(new Map())
+  const [programsByVenue, setProgramsByVenue] = useState<Map<string, VenueProgramSummary[]>>(
+    new Map(),
+  )
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [search, setSearch] = useState('')
@@ -29,18 +39,33 @@ export function VenuesListPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getAllVenuesForAdmin(), getAllProgramsForAdmin(), getVenueProgramLinksForAdmin()])
-      .then(([venueResult, programResult, linkResult]) => {
+    Promise.all([
+      getAllVenuesForAdmin(),
+      getAllProgramsForAdmin(),
+      getVenueProgramLinksForAdmin(),
+      getVenueProgramStatus(),
+    ])
+      .then(([venueResult, programResult, linkResult, statusResult]) => {
         if (cancelled) return
-        const names = new Map<string, string[]>()
+        const byVenue = new Map<string, VenueProgramSummary[]>()
         programResult.forEach((program) => {
           linkResult
             .filter((link) => link.programId === program.id && link.isActive)
-            .forEach((link) =>
-              names.set(link.venueId, [...(names.get(link.venueId) ?? []), program.name]),
-            )
+            .forEach((link) => {
+              const status = statusResult.find(
+                (st) => st.venueId === link.venueId && st.programId === program.id,
+              )
+              byVenue.set(link.venueId, [
+                ...(byVenue.get(link.venueId) ?? []),
+                {
+                  name: program.name,
+                  activeSchedules: status?.activeSchedules ?? 0,
+                  requiredSchedules: status?.requiredSchedules ?? 0,
+                },
+              ])
+            })
         })
-        setProgramNamesByVenue(names)
+        setProgramsByVenue(byVenue)
         setVenues(venueResult)
       })
       .catch(() => {
@@ -116,7 +141,23 @@ export function VenuesListPage() {
             { header: 'Ciudad', cell: (v) => v.city ?? '—' },
             {
               header: 'Programas',
-              cell: (v) => programNamesByVenue.get(v.id)?.join(', ') || 'Sin programas',
+              cell: (v) => {
+                const items = programsByVenue.get(v.id) ?? []
+                if (items.length === 0) return 'Sin programas'
+                return (
+                  <ul className="space-y-0.5">
+                    {items.map((item) => {
+                      const isIncomplete = item.activeSchedules < item.requiredSchedules
+                      return (
+                        <li key={item.name} className={isIncomplete ? 'text-amber-600' : undefined}>
+                          {item.name} ({item.activeSchedules}/{item.requiredSchedules})
+                          {isIncomplete && ' · faltan horarios'}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )
+              },
             },
             {
               header: 'Estado',

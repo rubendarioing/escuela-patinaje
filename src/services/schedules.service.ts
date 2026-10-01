@@ -59,7 +59,8 @@ const SCHEDULE_SELECT = `
   schedule_instructors ( role, instructors ( id, first_name, last_name ) )
 `
 
-export const getSchedules = async (): Promise<Schedule[]> => {
+// Todos los horarios activos, sin importar si su programa ya es publicable en la sede
+const getActiveSchedules = async (): Promise<Schedule[]> => {
   const { data, error } = await supabase
     .from('training_schedules')
     .select(SCHEDULE_SELECT)
@@ -69,6 +70,23 @@ export const getSchedules = async (): Promise<Schedule[]> => {
 
   if (error) throw error
   return (data as unknown as ScheduleWithRelationsRow[]).map(mapSchedule)
+}
+
+// Horarios activos para el sitio público: solo los de programas publicables en su
+// sede (con al menos los horarios que la sede exige por deportista)
+export const getSchedules = async (): Promise<Schedule[]> => {
+  const [schedules, statusResult] = await Promise.all([
+    getActiveSchedules(),
+    supabase.rpc('get_venue_program_status'),
+  ])
+  if (statusResult.error) throw statusResult.error
+
+  const publishable = new Set(
+    (statusResult.data ?? [])
+      .filter((row) => row.is_publishable)
+      .map((row) => `${row.venue_id}:${row.program_id}`),
+  )
+  return schedules.filter((s) => publishable.has(`${s.venueId}:${s.programId}`))
 }
 
 export const getSchedulesByVenueSlug = async (venueSlug: string): Promise<Schedule[]> => {
@@ -110,8 +128,9 @@ export const getScheduleAvailability = async (): Promise<ScheduleAvailability[]>
 // Horarios ordenados por cercanía a partir de hoy (son recurrentes semanales, no tienen fecha fija)
 const jsDayToOurDay = (jsDay: number) => (jsDay === 0 ? 7 : jsDay)
 
+// Usado en el dashboard del admin: incluye las clases de programas aún no publicables
 export const getUpcomingSchedules = async (limit = 5): Promise<Schedule[]> => {
-  const schedules = await getSchedules()
+  const schedules = await getActiveSchedules()
   const today = jsDayToOurDay(new Date().getDay())
 
   return schedules
