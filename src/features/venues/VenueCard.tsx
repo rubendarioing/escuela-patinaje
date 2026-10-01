@@ -9,11 +9,22 @@ export function VenueCard({ venue }: VenueCardProps) {
   return (
     <Link
       to={`/sedes/${venue.slug}`}
-      className="block rounded-lg border border-slate-200 p-4 transition hover:border-sky-300 hover:shadow-sm"
+      className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-sky-300 hover:shadow-sm"
     >
-      <p className="font-semibold text-slate-900">{venue.name}</p>
-      <p className="mt-1 text-sm text-slate-600">{venue.address}</p>
-      {venue.city && <p className="text-sm text-slate-500">{venue.city}</p>}
+      {venue.imageUrl && (
+        <img
+          src={venue.imageUrl}
+          alt={venue.name}
+          loading="lazy"
+          decoding="async"
+          className="aspect-video w-full object-cover"
+        />
+      )}
+      <div className="p-4">
+        <p className="font-semibold text-slate-900">{venue.name}</p>
+        <p className="mt-1 text-sm text-slate-600">{venue.address}</p>
+        {venue.city && <p className="text-sm text-slate-500">{venue.city}</p>}
+      </div>
     </Link>
   )
 }
