@@ -19,12 +19,19 @@ values ('TEST programa inactivo', 'test-programa-inactivo', false);
 insert into instructors (first_name, last_name, email, phone, is_active)
 values ('TEST', 'Inactivo', 'test@example.com', '3000000000', false);
 
--- Horario activo pero en una sede inactiva (el público NO debe verlo)
-insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
-select v.id, p.id, 1, '10:00', '11:00', 5
+-- La sede inactiva ofrece un programa activo (el público NO debe ver la relación)
+insert into venue_programs (venue_id, program_id)
+select v.id, p.id
 from venues v, programs p
 where v.slug = 'test-sede-inactiva' and p.is_active
 limit 1;
+
+-- Horario activo pero en una sede inactiva (el público NO debe verlo)
+insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
+select vp.venue_id, vp.program_id, 1, '10:00', '11:00', 5
+from venue_programs vp
+join venues v on v.id = vp.venue_id
+where v.slug = 'test-sede-inactiva';
 
 -- Instructor inactivo asociado a un horario visible (el público NO debe verlo)
 insert into schedule_instructors (schedule_id, instructor_id, role)
@@ -59,11 +66,19 @@ select set_config('t.programs',
   (select count(*) from programs where is_active)::text, true);
 select set_config('t.instructors',
   (select count(*) from instructors where is_active)::text, true);
+select set_config('t.venue_programs',
+  (select count(*) from venue_programs vp
+   where vp.is_active
+     and exists (select 1 from venues v where v.id = vp.venue_id and v.is_active)
+     and exists (select 1 from programs p where p.id = vp.program_id and p.is_active))::text, true);
 select set_config('t.schedules',
   (select count(*) from training_schedules s
    where s.is_active
      and exists (select 1 from venues v where v.id = s.venue_id and v.is_active)
-     and exists (select 1 from programs p where p.id = s.program_id and p.is_active))::text, true);
+     and exists (select 1 from programs p where p.id = s.program_id and p.is_active)
+     and exists (select 1 from venue_programs vp
+                 where vp.venue_id = s.venue_id and vp.program_id = s.program_id
+                   and vp.is_active))::text, true);
 select set_config('t.sched_instr',
   (select count(*) from schedule_instructors si
    join training_schedules s on s.id = si.schedule_id
@@ -95,6 +110,10 @@ begin
   select count(id) into n from instructors;
   assert n = current_setting('t.instructors')::int,
     format('FALLA: instructors visibles=%s, esperados=%s', n, current_setting('t.instructors'));
+
+  select count(*) into n from venue_programs;
+  assert n = current_setting('t.venue_programs')::int,
+    format('FALLA: venue_programs visibles=%s, esperados=%s', n, current_setting('t.venue_programs'));
 
   select count(*) into n from training_schedules;
   assert n = current_setting('t.schedules')::int,
@@ -141,6 +160,7 @@ begin
   foreach s in array array[
     $q$insert into venues (name, slug, address) values ('hack', 'hack', 'x')$q$,
     $q$insert into programs (name, slug) values ('hack', 'hack')$q$,
+    $q$insert into venue_programs (venue_id, program_id) values (gen_random_uuid(), gen_random_uuid())$q$,
     $q$insert into instructors (first_name, last_name) values ('hack', 'hack')$q$,
     $q$insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity) values (gen_random_uuid(), gen_random_uuid(), 1, '10:00', '11:00', 5)$q$,
     $q$insert into schedule_instructors (schedule_id, instructor_id) values (gen_random_uuid(), gen_random_uuid())$q$,
@@ -161,7 +181,7 @@ begin
 
   -- E) Actualizaciones y borrados: deben fallar o no afectar ninguna fila
   foreach t in array array[
-    'venues', 'programs', 'instructors', 'training_schedules',
+    'venues', 'programs', 'venue_programs', 'instructors', 'training_schedules',
     'schedule_instructors', 'admin_profiles',
     'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'
   ] loop
@@ -196,8 +216,13 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  -- F) Las funciones de autorización no son ejecutables por el público
-  foreach s in array array['select is_staff()', 'select is_admin()'] loop
+  -- F) Las funciones de autorización y las de escritura del admin no son
+  -- ejecutables por el público
+  foreach s in array array[
+    'select is_staff()',
+    'select is_admin()',
+    $q$select set_venue_programs(gen_random_uuid(), array[]::uuid[])$q$
+  ] loop
     begin
       execute s;
       raise exception 'FALLA: anon pudo ejecutar: %', s;
@@ -312,6 +337,46 @@ begin
 
   update venues set description = 'editado por manager' where slug = 'test-manager-sede';
 
+  -- Puede asignar programas a una sede y quitarlos (se desactivan, no se borran)
+  perform set_venue_programs(
+    (select id from venues where slug = 'test-manager-sede'),
+    array(select id from programs where is_active limit 2)
+  );
+  select count(*) into n from venue_programs vp
+  join venues v on v.id = vp.venue_id
+  where v.slug = 'test-manager-sede' and vp.is_active;
+  assert n = (select least(count(*), 2) from programs where is_active),
+    format('FALLA: set_venue_programs dejó %s programas activos', n);
+
+  perform set_venue_programs((select id from venues where slug = 'test-manager-sede'), array[]::uuid[]);
+  select count(*) into n from venue_programs vp
+  join venues v on v.id = vp.venue_id
+  where v.slug = 'test-manager-sede' and vp.is_active;
+  assert n = 0, format('FALLA: set_venue_programs con lista vacía dejó %s activos', n);
+
+  -- Un horario de un programa que la sede nunca ha ofrecido debe rechazarse
+  insert into programs (name, slug) values ('TEST manager programa', 'test-manager-programa');
+  begin
+    insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
+    select v.id, p.id, 1, '10:00', '11:00', 5
+    from venues v, programs p
+    where v.slug = 'test-manager-sede' and p.slug = 'test-manager-programa';
+    raise exception 'FALLA: se creó un horario con un programa que la sede no ofrece';
+  exception when foreign_key_violation then null;
+  end;
+
+  -- También si el programa estuvo en la sede pero se quitó (relación inactiva)
+  begin
+    insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
+    select vp.venue_id, vp.program_id, 1, '10:00', '11:00', 5
+    from venue_programs vp
+    join venues v on v.id = vp.venue_id
+    where v.slug = 'test-manager-sede' and not vp.is_active
+    limit 1;
+    raise exception 'FALLA: se creó un horario con un programa quitado de la sede';
+  exception when foreign_key_violation then null;
+  end;
+
   -- Puede registrar y editar pagos (período anclado a la fecha de este
   -- deportista de prueba, no a un mes calendario)
   insert into payments (athlete_id, amount, payment_date, period_start)
@@ -361,7 +426,9 @@ reset role;
 delete from payments where athlete_id in (select id from athletes where last_name = 'ManagerDeportista');
 delete from athletes where last_name = 'ManagerDeportista';
 delete from guardians where last_name = 'ManagerAcudiente';
+delete from venue_programs where venue_id in (select id from venues where slug = 'test-manager-sede');
 delete from venues where slug = 'test-manager-sede';
+delete from programs where slug = 'test-manager-programa';
 
 -- =====================================================================
 -- 7) Como admin

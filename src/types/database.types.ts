@@ -494,6 +494,52 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "training_schedules_venue_program_fkey"
+            columns: ["venue_id", "program_id"]
+            isOneToOne: false
+            referencedRelation: "venue_programs"
+            referencedColumns: ["venue_id", "program_id"]
+          },
+        ]
+      }
+      venue_programs: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          program_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          program_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          program_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_programs_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_programs_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       venues: {
@@ -567,6 +613,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       save_training_schedule: { Args: { payload: Json }; Returns: string }
+      set_venue_programs: {
+        Args: { p_program_ids: string[]; p_venue_id: string }
+        Returns: undefined
+      }
       submit_preregistration: { Args: { payload: Json }; Returns: Json }
     }
     Enums: {

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAllVenuesForAdmin, setVenueActive } from '@/services/venues.service'
+import {
+  getAllVenuesForAdmin,
+  getVenueProgramLinksForAdmin,
+  setVenueActive,
+} from '@/services/venues.service'
+import { getAllProgramsForAdmin } from '@/services/programs.service'
 import type { Venue } from '@/types/venue'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -15,6 +20,7 @@ import { cn } from '@/lib/utils'
 
 export function VenuesListPage() {
   const [venues, setVenues] = useState<Venue[] | null>(null)
+  const [programNamesByVenue, setProgramNamesByVenue] = useState<Map<string, string[]>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [search, setSearch] = useState('')
@@ -23,10 +29,19 @@ export function VenuesListPage() {
 
   useEffect(() => {
     let cancelled = false
-    getAllVenuesForAdmin()
-      .then((result) => {
+    Promise.all([getAllVenuesForAdmin(), getAllProgramsForAdmin(), getVenueProgramLinksForAdmin()])
+      .then(([venueResult, programResult, linkResult]) => {
         if (cancelled) return
-        setVenues(result)
+        const names = new Map<string, string[]>()
+        programResult.forEach((program) => {
+          linkResult
+            .filter((link) => link.programId === program.id && link.isActive)
+            .forEach((link) =>
+              names.set(link.venueId, [...(names.get(link.venueId) ?? []), program.name]),
+            )
+        })
+        setProgramNamesByVenue(names)
+        setVenues(venueResult)
       })
       .catch(() => {
         if (cancelled) return
@@ -99,6 +114,10 @@ export function VenuesListPage() {
           columns={[
             { header: 'Nombre', cell: (v) => v.name },
             { header: 'Ciudad', cell: (v) => v.city ?? '—' },
+            {
+              header: 'Programas',
+              cell: (v) => programNamesByVenue.get(v.id)?.join(', ') || 'Sin programas',
+            },
             {
               header: 'Estado',
               cell: (v) => (

@@ -29,6 +29,15 @@ from (values
 where not exists (select 1 from instructors);
 
 
+-- Programas que ofrece cada sede (requerido antes de crear horarios)
+insert into venue_programs (venue_id, program_id)
+select v.id, p.id
+from venues v
+cross join programs p
+where v.slug in ('prado', 'colsubsidio')
+  and p.slug in ('ninos-4-7', 'mayores-7')
+on conflict do nothing;
+
 -- Horarios de desarrollo (12): 2 sedes x 2 grupos x 3 franjas
 insert into training_schedules (venue_id, program_id, day_of_week, start_time, end_time, max_capacity)
 select v.id, p.id, d.day_of_week, d.start_time::time, d.end_time::time, 20
