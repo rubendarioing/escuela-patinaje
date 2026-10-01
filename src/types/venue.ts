@@ -13,3 +13,10 @@ export type Venue = {
   imageUrl: string | null
   isActive: boolean
 }
+
+// Relación sede-programa: qué programas ofrece cada sede
+export type VenueProgramLink = {
+  venueId: string
+  programId: string
+  isActive: boolean
+}

@@ -1,8 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
-import type { Venue } from '@/types/venue'
+import type { Venue, VenueProgramLink } from '@/types/venue'
+import type { Program } from '@/types/program'
 import type { VenueFormValues } from '@/lib/validations/venue.schema'
 import { getSchedules } from '@/services/schedules.service'
+import { mapProgram } from '@/services/programs.service'
 
 type VenueRow = Tables<'venues'>
 
@@ -52,6 +54,22 @@ export const getVenueBySlug = async (slug: string): Promise<Venue | null> => {
 export const getSchedulesByVenueId = async (venueId: string) => {
   const schedules = await getSchedules()
   return schedules.filter((s) => s.venueId === venueId)
+}
+
+// Programas activos que ofrece una sede, en el orden del catálogo
+export const getProgramsByVenueId = async (venueId: string): Promise<Program[]> => {
+  const { data, error } = await supabase
+    .from('venue_programs')
+    .select('programs ( * )')
+    .eq('venue_id', venueId)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+    .map((row) => row.programs)
+    .filter((program) => program !== null && program.is_active)
+    .map((program) => mapProgram(program!))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 // Todas las sedes, activas e inactivas: solo para el panel admin
@@ -112,5 +130,27 @@ export const updateVenue = async (id: string, input: VenueFormValues): Promise<V
 
 export const setVenueActive = async (id: string, isActive: boolean): Promise<void> => {
   const { error } = await supabase.from('venues').update({ is_active: isActive }).eq('id', id)
+  if (error) throw error
+}
+
+// Todas las relaciones sede-programa, activas e inactivas: solo para el panel admin
+export const getVenueProgramLinksForAdmin = async (): Promise<VenueProgramLink[]> => {
+  const { data, error } = await supabase
+    .from('venue_programs')
+    .select('venue_id, program_id, is_active')
+  if (error) throw error
+  return data.map((row) => ({
+    venueId: row.venue_id,
+    programId: row.program_id,
+    isActive: row.is_active,
+  }))
+}
+
+// Deja activos en la sede exactamente los programas indicados (los demás se desactivan)
+export const setVenuePrograms = async (venueId: string, programIds: string[]): Promise<void> => {
+  const { error } = await supabase.rpc('set_venue_programs', {
+    p_venue_id: venueId,
+    p_program_ids: programIds,
+  })
   if (error) throw error
 }

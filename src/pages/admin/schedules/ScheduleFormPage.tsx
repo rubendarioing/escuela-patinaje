@@ -8,7 +8,7 @@ import {
   saveTrainingSchedule,
   type InstructorAssignment,
 } from '@/services/schedules.service'
-import { getVenues } from '@/services/venues.service'
+import { getVenueProgramLinksForAdmin, getVenues } from '@/services/venues.service'
 import { getPrograms } from '@/services/programs.service'
 import { getAllInstructorsForAdmin, type AdminInstructor } from '@/services/instructors.service'
 import { scheduleSchema, type ScheduleFormValues } from '@/lib/validations/schedule.schema'
@@ -21,7 +21,7 @@ import { SelectField } from '@/components/forms/SelectField'
 import { TimeField } from '@/components/forms/TimeField'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Venue } from '@/types/venue'
+import type { Venue, VenueProgramLink } from '@/types/venue'
 import type { Program } from '@/types/program'
 
 const emptyValues: ScheduleFormValues = {
@@ -46,6 +46,10 @@ export function ScheduleFormPage() {
 
   const [venues, setVenues] = useState<Venue[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
+  const [venueProgramLinks, setVenueProgramLinks] = useState<VenueProgramLink[]>([])
+  // Sede y programa guardados al abrir en modo edición: el programa se conserva en la lista
+  // aunque ya no esté activo en esa sede
+  const [savedLink, setSavedLink] = useState<{ venueId: string; programId: string } | null>(null)
   const [instructors, setInstructors] = useState<AdminInstructor[]>([])
   const [assignments, setAssignments] = useState<InstructorAssignment[]>([])
   const [assistantIds, setAssistantIds] = useState<string[]>([])
@@ -55,6 +59,7 @@ export function ScheduleFormPage() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleSchema),
@@ -71,33 +76,38 @@ export function ScheduleFormPage() {
       getPrograms(),
       getAllInstructorsForAdmin(),
       getInstructorAssignments(),
+      getVenueProgramLinksForAdmin(),
       loadPromise,
     ])
-      .then(([venueResult, programResult, instructorResult, assignmentResult, detail]) => {
-        if (cancelled) return
-        setVenues(venueResult)
-        setPrograms(programResult)
-        setInstructors(instructorResult)
-        setAssignments(assignmentResult)
+      .then(
+        ([venueResult, programResult, instructorResult, assignmentResult, linkResult, detail]) => {
+          if (cancelled) return
+          setVenues(venueResult)
+          setPrograms(programResult)
+          setVenueProgramLinks(linkResult)
+          setInstructors(instructorResult)
+          setAssignments(assignmentResult)
 
-        if (isEditMode) {
-          if (!detail) {
-            setLoadError('Ese horario no existe.')
-            return
+          if (isEditMode) {
+            if (!detail) {
+              setLoadError('Ese horario no existe.')
+              return
+            }
+            reset({
+              venueId: detail.venueId,
+              programId: detail.programId,
+              dayOfWeek: String(detail.dayOfWeek),
+              startTime: detail.startTime.slice(0, 5),
+              endTime: detail.endTime.slice(0, 5),
+              maxCapacity: String(detail.maxCapacity),
+              leadInstructorId: detail.leadInstructorId ?? '',
+              isActive: detail.isActive,
+            })
+            setAssistantIds(detail.assistantInstructorIds)
+            setSavedLink({ venueId: detail.venueId, programId: detail.programId })
           }
-          reset({
-            venueId: detail.venueId,
-            programId: detail.programId,
-            dayOfWeek: String(detail.dayOfWeek),
-            startTime: detail.startTime.slice(0, 5),
-            endTime: detail.endTime.slice(0, 5),
-            maxCapacity: String(detail.maxCapacity),
-            leadInstructorId: detail.leadInstructorId ?? '',
-            isActive: detail.isActive,
-          })
-          setAssistantIds(detail.assistantInstructorIds)
-        }
-      })
+        },
+      )
       .catch(() => {
         if (cancelled) return
         setLoadError('No se pudo cargar la información necesaria.')
@@ -110,6 +120,26 @@ export function ScheduleFormPage() {
       cancelled = true
     }
   }, [isEditMode, id, reset])
+
+  const venueId = watch('venueId')
+  const programId = watch('programId')
+
+  // Solo los programas que ofrece la sede elegida
+  const venuePrograms = useMemo(() => {
+    if (!venueId) return []
+    const offeredIds = venueProgramLinks
+      .filter((link) => link.venueId === venueId && link.isActive)
+      .map((link) => link.programId)
+    if (savedLink?.venueId === venueId) offeredIds.push(savedLink.programId)
+    return programs.filter((p) => offeredIds.includes(p.id))
+  }, [venueId, venueProgramLinks, programs, savedLink])
+
+  // Al cambiar de sede, limpiar el programa si la nueva sede no lo ofrece
+  useEffect(() => {
+    if (programId && !venuePrograms.some((p) => p.id === programId)) {
+      setValue('programId', '')
+    }
+  }, [programId, venuePrograms, setValue])
 
   const dayOfWeek = watch('dayOfWeek')
   const startTime = watch('startTime')
@@ -171,8 +201,14 @@ export function ScheduleFormPage() {
         assistantInstructorIds: assistantIds,
       })
       navigate('/admin/horarios')
-    } catch {
-      setSubmitError('No se pudo guardar el horario. Revisa los datos e inténtalo de nuevo.')
+    } catch (error) {
+      // 23503: la sede no ofrece ese programa (llave foránea hacia venue_programs)
+      const code = (error as { code?: string } | null)?.code
+      setSubmitError(
+        code === '23503'
+          ? 'Esa sede no ofrece el programa elegido. Agrégalo primero desde Editar sede.'
+          : 'No se pudo guardar el horario. Revisa los datos e inténtalo de nuevo.',
+      )
     }
   }
 
@@ -196,12 +232,21 @@ export function ScheduleFormPage() {
           <SelectField
             label="Programa"
             id="programId"
-            placeholder="Elige un programa"
-            options={programs.map((p) => ({ value: p.id, label: p.name }))}
+            placeholder={venueId ? 'Elige un programa' : 'Primero elige una sede'}
+            options={venuePrograms.map((p) => ({ value: p.id, label: p.name }))}
             error={errors.programId?.message}
             {...register('programId')}
           />
         </div>
+        {venueId && venuePrograms.length === 0 && (
+          <p className="text-xs text-amber-600">
+            Esta sede no tiene programas.{' '}
+            <Link to={`/admin/sedes/${venueId}/editar`} className="text-sky-700 hover:underline">
+              Agrégalos en Editar sede
+            </Link>{' '}
+            antes de crear horarios.
+          </p>
+        )}
 
         <SelectField
           label="Día"

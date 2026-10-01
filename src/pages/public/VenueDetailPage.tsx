@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getVenueBySlug, getSchedulesByVenueId } from '@/services/venues.service'
+import {
+  getProgramsByVenueId,
+  getSchedulesByVenueId,
+  getVenueBySlug,
+} from '@/services/venues.service'
 import type { Venue } from '@/types/venue'
 import type { Schedule } from '@/types/schedule'
+import type { Program } from '@/types/program'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -10,11 +15,13 @@ import { PageContainer } from '@/components/common/PageContainer'
 import { SectionTitle } from '@/components/common/SectionTitle'
 import { Seo } from '@/components/common/Seo'
 import { ScheduleCard } from '@/features/schedules/ScheduleCard'
+import { ProgramCard } from '@/features/programs/ProgramCard'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type VenueDetailData = {
   venue: Venue | null
+  programs: Program[]
   schedules: Schedule[]
 }
 
@@ -31,9 +38,11 @@ export function VenueDetailPage() {
     getVenueBySlug(slug)
       .then(async (venue) => {
         if (cancelled) return
-        const schedules = venue ? await getSchedulesByVenueId(venue.id) : []
+        const [programs, schedules] = venue
+          ? await Promise.all([getProgramsByVenueId(venue.id), getSchedulesByVenueId(venue.id)])
+          : [[], []]
         if (cancelled) return
-        setData({ venue, schedules })
+        setData({ venue, programs, schedules })
       })
       .catch(() => {
         if (cancelled) return
@@ -68,7 +77,7 @@ export function VenueDetailPage() {
     )
   }
 
-  const { venue, schedules } = data
+  const { venue, programs, schedules } = data
 
   return (
     <PageContainer>
@@ -94,6 +103,21 @@ export function VenueDetailPage() {
           Ver ubicación en el mapa
         </a>
       )}
+
+      <section>
+        <h2 className="text-xl font-semibold text-slate-900">Programas en esta sede</h2>
+        {programs.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-500">
+            Próximamente publicaremos los programas de esta sede.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {programs.map((program) => (
+              <ProgramCard key={program.id} program={program} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section>
         <h2 className="text-xl font-semibold text-slate-900">Horarios en esta sede</h2>

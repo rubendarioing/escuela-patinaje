@@ -1,8 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createVenue, getVenueById, updateVenue } from '@/services/venues.service'
+import {
+  createVenue,
+  getVenueById,
+  getVenueProgramLinksForAdmin,
+  setVenuePrograms,
+  updateVenue,
+} from '@/services/venues.service'
+import { getAllProgramsForAdmin } from '@/services/programs.service'
+import { getAllSchedulesForAdmin } from '@/services/schedules.service'
+import type { Program } from '@/types/program'
 import { venueSchema, type VenueFormValues } from '@/lib/validations/venue.schema'
 import { slugify } from '@/lib/utils/slug'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -35,6 +44,16 @@ export function VenueFormPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [slugLocked, setSlugLocked] = useState(isEditMode)
+  // Si al crear se guardó la sede pero fallaron sus programas, reintentar actualiza en vez de duplicar
+  const [createdVenueId, setCreatedVenueId] = useState<string | null>(null)
+
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(true)
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [initialProgramIds, setInitialProgramIds] = useState<string[]>([])
+  const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>([])
+  const [activeSchedulesByProgram, setActiveSchedulesByProgram] = useState<Map<string, number>>(
+    new Map(),
+  )
 
   const {
     register,
@@ -85,6 +104,61 @@ export function VenueFormPage() {
     }
   }, [isEditMode, id, reset])
 
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      getAllProgramsForAdmin(),
+      isEditMode ? getVenueProgramLinksForAdmin() : Promise.resolve([]),
+      isEditMode ? getAllSchedulesForAdmin() : Promise.resolve([]),
+    ])
+      .then(([programResult, linkResult, scheduleResult]) => {
+        if (cancelled) return
+        setPrograms(programResult)
+
+        const linkedIds = linkResult
+          .filter((link) => link.venueId === id && link.isActive)
+          .map((link) => link.programId)
+        setInitialProgramIds(linkedIds)
+        setSelectedProgramIds(linkedIds)
+
+        const counts = new Map<string, number>()
+        scheduleResult
+          .filter((s) => s.venueId === id && s.isActive)
+          .forEach((s) => counts.set(s.programId, (counts.get(s.programId) ?? 0) + 1))
+        setActiveSchedulesByProgram(counts)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLoadError('No se pudieron cargar los programas.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPrograms(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isEditMode, id])
+
+  const toggleProgram = (programId: string) => {
+    setSelectedProgramIds((prev) =>
+      prev.includes(programId) ? prev.filter((x) => x !== programId) : [...prev, programId],
+    )
+  }
+
+  // Programas que se van a quitar de la sede y todavía tienen horarios activos
+  const removedWithSchedules = useMemo(
+    () =>
+      programs.filter(
+        (p) =>
+          initialProgramIds.includes(p.id) &&
+          !selectedProgramIds.includes(p.id) &&
+          (activeSchedulesByProgram.get(p.id) ?? 0) > 0,
+      ),
+    [programs, initialProgramIds, selectedProgramIds, activeSchedulesByProgram],
+  )
+
   const name = watch('name')
 
   useEffect(() => {
@@ -97,19 +171,33 @@ export function VenueFormPage() {
 
   const onSubmit = async (values: VenueFormValues) => {
     setSubmitError(null)
+
+    const existingId = id ?? createdVenueId
+    let venueId: string
     try {
-      if (isEditMode && id) {
-        await updateVenue(id, values)
+      if (existingId) {
+        await updateVenue(existingId, values)
+        venueId = existingId
       } else {
-        await createVenue(values)
+        venueId = (await createVenue(values)).id
+        setCreatedVenueId(venueId)
       }
-      navigate('/admin/sedes')
     } catch {
       setSubmitError('No se pudo guardar la sede. Revisa los datos e inténtalo de nuevo.')
+      return
+    }
+
+    try {
+      await setVenuePrograms(venueId, selectedProgramIds)
+      navigate('/admin/sedes')
+    } catch {
+      setSubmitError(
+        'La sede se guardó, pero no se pudieron guardar sus programas. Inténtalo de nuevo.',
+      )
     }
   }
 
-  if (isLoadingVenue) return <LoadingState label="Cargando sede…" />
+  if (isLoadingVenue || isLoadingPrograms) return <LoadingState label="Cargando sede…" />
   if (loadError) return <ErrorState message={loadError} />
 
   return (
@@ -211,6 +299,55 @@ export function VenueFormPage() {
           value={imageUrl || null}
           onChange={(url) => setValue('imageUrl', url ?? '')}
         />
+
+        <fieldset>
+          <legend className="text-sm font-medium text-slate-700">Programas que ofrece</legend>
+          <p className="text-xs text-slate-500">
+            Puedes dejar la sede sin programas y agregarlos después.
+          </p>
+          {programs.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-600">
+              Todavía no hay programas.{' '}
+              <Link to="/admin/programas/nuevo" className="text-sky-700 hover:underline">
+                Crear un programa
+              </Link>
+            </p>
+          ) : (
+            <div className="mt-2 space-y-1">
+              {programs.map((program) => {
+                const scheduleCount = activeSchedulesByProgram.get(program.id) ?? 0
+                return (
+                  <label
+                    key={program.id}
+                    className="flex items-center gap-2 text-sm text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProgramIds.includes(program.id)}
+                      onChange={() => toggleProgram(program.id)}
+                    />
+                    {program.name}
+                    {!program.isActive && ' (inactivo)'}
+                    {scheduleCount > 0 && (
+                      <span className="text-xs text-slate-500">
+                        · {scheduleCount}{' '}
+                        {scheduleCount === 1 ? 'horario activo' : 'horarios activos'}
+                      </span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
+          {removedWithSchedules.length > 0 && (
+            <p className="mt-2 text-xs text-amber-600">
+              Aviso: {removedWithSchedules.map((p) => p.name).join(', ')}{' '}
+              {removedWithSchedules.length === 1 ? 'tiene' : 'tienen'} horarios activos en esta
+              sede. Al quitarlo{removedWithSchedules.length === 1 ? '' : 's'}, esos horarios dejarán
+              de mostrarse en el sitio público.
+            </p>
+          )}
+        </fieldset>
 
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" {...register('isActive')} />
