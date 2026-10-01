@@ -53,10 +53,8 @@ type RecentRegistrationRow = {
   source: string
   created_at: string
   athletes: { first_name: string; last_name: string } | null
-  training_schedules: {
-    venues: { name: string } | null
-    programs: { name: string } | null
-  } | null
+  venues: { name: string } | null
+  registration_schedules: { training_schedules: { programs: { name: string } | null } | null }[]
 }
 
 export const getRecentRegistrations = async (): Promise<RecentRegistration[]> => {
@@ -65,7 +63,8 @@ export const getRecentRegistrations = async (): Promise<RecentRegistration[]> =>
     .select(
       `id, status, source, created_at,
        athletes ( first_name, last_name ),
-       training_schedules ( venues ( name ), programs ( name ) )`,
+       venues ( name ),
+       registration_schedules ( training_schedules ( programs ( name ) ) )`,
     )
     .order('created_at', { ascending: false })
     .limit(5)
@@ -75,8 +74,15 @@ export const getRecentRegistrations = async (): Promise<RecentRegistration[]> =>
   return (data as unknown as RecentRegistrationRow[]).map((row) => ({
     id: row.id,
     athleteName: row.athletes ? `${row.athletes.first_name} ${row.athletes.last_name}` : '—',
-    venueName: row.training_schedules?.venues?.name ?? '—',
-    programName: row.training_schedules?.programs?.name ?? '—',
+    venueName: row.venues?.name ?? '—',
+    programName:
+      [
+        ...new Set(
+          row.registration_schedules
+            .map((rs) => rs.training_schedules?.programs?.name)
+            .filter((name): name is string => Boolean(name)),
+        ),
+      ].join(', ') || '—',
     status: row.status,
     source: row.source,
     createdAt: row.created_at,

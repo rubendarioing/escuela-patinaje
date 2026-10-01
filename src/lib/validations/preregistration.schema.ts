@@ -24,7 +24,6 @@ export const preregistrationSchema = z
       .trim()
       .max(200)
       .refine((value) => value === '' || EMAIL_REGEX.test(value), 'Ingresa un correo válido'),
-    scheduleId: z.string().min(1, 'Elige un horario'),
     notes: z.string().trim().max(1000),
     consentAccepted: z.boolean().refine((value) => value === true, {
       message: 'Debes aceptar el tratamiento de datos',

@@ -8,7 +8,7 @@ import {
 import { getScheduleAvailability } from '@/services/schedules.service'
 import { getVenues } from '@/services/venues.service'
 import { getPrograms } from '@/services/programs.service'
-import { DAY_LABELS, formatScheduleRange } from '@/lib/utils/schedule'
+import { DAY_LABELS, formatScheduleRange, formatTime } from '@/lib/utils/schedule'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -113,7 +113,8 @@ export function RegistrationsListPage() {
       if (pendingOnly) return r.status === 'pending' && r.source === 'web_form'
       if (statusFilter !== ALL && r.status !== statusFilter) return false
       if (venueFilter !== ALL && r.venueId !== venueFilter) return false
-      if (programFilter !== ALL && r.programId !== programFilter) return false
+      if (programFilter !== ALL && !r.schedules.some((sc) => sc.programId === programFilter))
+        return false
       if (dateFilter && r.registrationDate !== dateFilter) return false
       return true
     })
@@ -144,12 +145,20 @@ export function RegistrationsListPage() {
   if (error) return <ErrorState message={error} onRetry={handleRetry} />
   if (!registrations) return <LoadingState label="Cargando inscripciones…" />
 
-  const isCapacityFull = pendingAction
-    ? (availabilityMap.get(pendingAction.registration.scheduleId) ?? 1) <= 0
-    : false
+  // Horarios de la inscripción que ya están en su cupo máximo
+  const fullSchedules = pendingAction
+    ? pendingAction.registration.schedules.filter(
+        (sc) => (availabilityMap.get(sc.scheduleId) ?? 1) <= 0,
+      )
+    : []
   const showCapacityWarning = Boolean(
-    pendingAction && CAPACITY_SENSITIVE_STATUSES.has(pendingAction.nextStatus) && isCapacityFull,
+    pendingAction &&
+    CAPACITY_SENSITIVE_STATUSES.has(pendingAction.nextStatus) &&
+    fullSchedules.length > 0,
   )
+  const fullSchedulesLabel = fullSchedules
+    .map((sc) => `${sc.programName} ${DAY_LABELS[sc.dayOfWeek] ?? ''} ${formatTime(sc.startTime)}`)
+    .join(', ')
 
   return (
     <div className="space-y-4">
@@ -222,12 +231,19 @@ export function RegistrationsListPage() {
           getRowKey={(r) => r.id}
           columns={[
             { header: 'Deportista', cell: (r) => r.athleteName },
-            { header: 'Programa', cell: (r) => r.programName },
             { header: 'Sede', cell: (r) => r.venueName },
             {
-              header: 'Horario',
-              cell: (r) =>
-                `${DAY_LABELS[r.dayOfWeek] ?? '—'} · ${formatScheduleRange(r.startTime, r.endTime)}`,
+              header: 'Horarios',
+              cell: (r) => (
+                <ul className="space-y-0.5">
+                  {r.schedules.map((sc) => (
+                    <li key={sc.scheduleId}>
+                      {sc.programName} · {DAY_LABELS[sc.dayOfWeek] ?? '—'}{' '}
+                      {formatScheduleRange(sc.startTime, sc.endTime)}
+                    </li>
+                  ))}
+                </ul>
+              ),
             },
             { header: 'Fecha', cell: (r) => r.registrationDate },
             {
@@ -280,7 +296,7 @@ export function RegistrationsListPage() {
         title={`${pendingAction?.label} inscripción`}
         description={
           showCapacityWarning
-            ? `Este horario ya está en su cupo máximo. ¿Confirmas ${pendingAction?.label.toLowerCase()} de todas formas?`
+            ? `Estos horarios ya están en su cupo máximo: ${fullSchedulesLabel}. ¿Confirmas ${pendingAction?.label.toLowerCase()} de todas formas?`
             : `¿Confirmas ${pendingAction?.label.toLowerCase()} la inscripción de ${pendingAction?.registration.athleteName}?`
         }
         confirmLabel={isSaving ? 'Guardando…' : 'Confirmar'}

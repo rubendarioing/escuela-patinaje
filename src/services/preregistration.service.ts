@@ -9,7 +9,7 @@ export type PreregistrationPayload = {
   guardian_phone: string
   guardian_whatsapp: string
   guardian_email: string
-  schedule_id: string
+  schedule_ids: string[] // exactamente los horarios que exige la sede
   notes: string
   consent_accepted: boolean
   consent_version: string

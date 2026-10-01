@@ -385,6 +385,39 @@ export type Database = {
         }
         Relationships: []
       }
+      registration_schedules: {
+        Row: {
+          created_at: string
+          registration_id: string
+          schedule_id: string
+        }
+        Insert: {
+          created_at?: string
+          registration_id: string
+          schedule_id: string
+        }
+        Update: {
+          created_at?: string
+          registration_id?: string
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_schedules_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_schedules_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "training_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registrations: {
         Row: {
           athlete_id: string
@@ -392,10 +425,11 @@ export type Database = {
           id: string
           notes: string | null
           registration_date: string
-          schedule_id: string
+          required_schedules: number
           source: string
           status: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           athlete_id: string
@@ -403,10 +437,11 @@ export type Database = {
           id?: string
           notes?: string | null
           registration_date?: string
-          schedule_id: string
+          required_schedules: number
           source?: string
           status?: string
           updated_at?: string
+          venue_id: string
         }
         Update: {
           athlete_id?: string
@@ -414,10 +449,11 @@ export type Database = {
           id?: string
           notes?: string | null
           registration_date?: string
-          schedule_id?: string
+          required_schedules?: number
           source?: string
           status?: string
           updated_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
@@ -428,10 +464,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "registrations_schedule_id_fkey"
-            columns: ["schedule_id"]
+            foreignKeyName: "registrations_venue_id_fkey"
+            columns: ["venue_id"]
             isOneToOne: false
-            referencedRelation: "training_schedules"
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]

@@ -62,11 +62,15 @@ values ('22222222-2222-2222-2222-222222222222', 'TEST', 'Deportista', '2015-01-0
 insert into athlete_guardians (athlete_id, guardian_id, is_primary)
 values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', true);
 
-insert into registrations (athlete_id, schedule_id, status)
-select '22222222-2222-2222-2222-222222222222', s.id, 'confirmed'
+-- Inscripción de 1 horario (required_schedules = 1) en el horario visible
+insert into registrations (id, athlete_id, venue_id, required_schedules, status)
+select '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222',
+  s.venue_id, 1, 'confirmed'
 from training_schedules s
-where s.is_active and s.venue_id in (select id from venues where is_active)
-limit 1;
+where s.id = current_setting('t.visible_schedule_id')::uuid;
+
+insert into registration_schedules (registration_id, schedule_id)
+values ('33333333-3333-3333-3333-333333333333', current_setting('t.visible_schedule_id')::uuid);
 
 -- 2) Valores esperados, calculados como postgres (ve todo)
 select set_config('t.venues',
@@ -167,7 +171,7 @@ begin
   end;
 
   -- C) Tablas privadas: el público no ve nada
-  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'] loop
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'registration_schedules', 'payments'] loop
     begin
       execute format('select count(*) from %I', t) into n;
       assert n = 0, format('FALLA: anon ve %s filas de %s', n, t);
@@ -189,7 +193,8 @@ begin
     $q$insert into athletes (first_name, last_name, birth_date) values ('hack', 'hack', '2015-01-01')$q$,
     $q$insert into guardians (first_name, last_name, email) values ('hack', 'hack', 'hack@example.com')$q$,
     $q$insert into athlete_guardians (athlete_id, guardian_id) values (gen_random_uuid(), gen_random_uuid())$q$,
-    $q$insert into registrations (athlete_id, schedule_id) values (gen_random_uuid(), gen_random_uuid())$q$,
+    $q$insert into registrations (athlete_id, venue_id, required_schedules) values (gen_random_uuid(), gen_random_uuid(), 1)$q$,
+    $q$insert into registration_schedules (registration_id, schedule_id) values (gen_random_uuid(), gen_random_uuid())$q$,
     $q$insert into payments (athlete_id, amount, period_start) values (gen_random_uuid(), 40000, current_date)$q$
   ] loop
     begin
@@ -203,7 +208,7 @@ begin
   foreach t in array array[
     'venues', 'programs', 'venue_programs', 'instructors', 'training_schedules',
     'schedule_instructors', 'instructor_programs', 'admin_profiles',
-    'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'
+    'athletes', 'guardians', 'athlete_guardians', 'registrations', 'registration_schedules', 'payments'
   ] loop
     begin
       execute format('update %I set created_at = created_at', t);
@@ -309,7 +314,7 @@ begin
   assert b = false, 'FALLA: is_admin() dio true para un usuario sin perfil';
 
   -- No puede leer tablas privadas
-  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'payments'] loop
+  foreach t in array array['admin_profiles', 'athletes', 'guardians', 'athlete_guardians', 'registrations', 'registration_schedules', 'payments'] loop
     begin
       execute format('select count(*) from %I', t) into n;
       assert n = 0, format('FALLA: usuario sin perfil ve %s filas de %s', n, t);

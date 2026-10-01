@@ -214,12 +214,16 @@ export function AthleteDetailPage() {
               <li key={r.id} className="flex items-center justify-between p-3 text-sm">
                 <div>
                   <p className="font-medium text-slate-900">
-                    {r.programName ?? '—'} · {r.venueName ?? '—'}
+                    {r.venueName ?? '—'} · {r.registrationDate} · {r.source}
                   </p>
-                  <p className="text-slate-500">
-                    {DAY_LABELS[r.dayOfWeek] ?? '—'} · {formatScheduleRange(r.startTime, r.endTime)}{' '}
-                    · {r.source}
-                  </p>
+                  <ul className="text-slate-500">
+                    {r.schedules.map((sc, index) => (
+                      <li key={index}>
+                        {sc.programName ?? '—'} · {DAY_LABELS[sc.dayOfWeek] ?? '—'}{' '}
+                        {formatScheduleRange(sc.startTime, sc.endTime)}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
                 <StatusBadge label={r.status} tone={STATUS_TONE[r.status] ?? 'neutral'} />
               </li>
